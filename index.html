@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YangMultiverse — 双宇宙微缩生态互动小游戏</title>
+  <title>YangMultiverse — 多元宇宙微缩生态互动小游戏</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -280,6 +280,10 @@
       left: 16px;
       display: inline-flex;
       align-items: center;
+      max-width: calc(100vw - 440px);
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
       gap: 3px;
       background: rgba(255, 255, 255, 0.86);
       backdrop-filter: blur(10px);
@@ -292,7 +296,13 @@
       z-index: 16;
     }
 
+    #world-switcher::-webkit-scrollbar {
+      display: none;
+    }
+
     .world-tab {
+      flex-shrink: 0;
+      white-space: nowrap;
       appearance: none;
       border: none;
       background: transparent;
@@ -571,10 +581,7 @@
       </div>
     </div>
 
-    <div id="world-switcher" role="tablist" aria-label="切换多元宇宙">
-      <button class="world-tab active" data-world="meadow" type="button" role="tab" aria-selected="true">🌿 春日草原</button>
-      <button class="world-tab" data-world="desert" type="button" role="tab" aria-selected="false">🏜️ 沙漠绿洲</button>
-    </div>
+    <div id="world-switcher" role="tablist" aria-label="切换多元宇宙"></div>
 
     <div id="world-veil"></div>
 
@@ -605,7 +612,225 @@
       if (params.get('pure') === '1') {
         document.body.classList.add('pure-mode');
       }
-      let currentWorld = params.get('world') === 'desert' ? 'desert' : 'meadow';
+      // Unified Multi-Universe Registry (single source of truth for N independent worlds)
+      const WORLD_REGISTRY = {
+        meadow: {
+          id: 'meadow',
+          label: '🌿 春日草原',
+          veilColor: '#f4f1ea',
+          addButtonLabel: '+ 添一只羊',
+          maxFlockToast: '草地最多容纳 24 只小羊',
+          switchToast: '已切换至春日草原 🌿',
+          resetToast: '已重置春日草原场景',
+          shearedToast: '剃完毛的小羊穿着小毛衣溜出来啦！',
+          circleOutsideToast: '请在草地区域画圈生成小羊',
+          circleWaterToast: '河道上不能放羊，请在草地或木桥上画圈',
+          circlePenToast: '羊这么可爱，不要这么残忍',
+          invalidDropToast: '河道或草地外不能放置，已放回原位',
+          sunnyGroundHex: 0xb8cf8a,
+          nightFlicker: false,
+          weatherModes: [
+            { id: 'sunny', label: '天气: 晴天', bg: '#f4f1ea' },
+            { id: 'sunset', label: '天气: 落日', bg: '#f5e8d7' },
+            { id: 'rain', label: '天气: 细雨', bg: '#e6ecf0' }
+          ],
+          env: {
+            terrainStyle: 'meadow',
+            hasDunes: false,
+            bridgeStyle: 'wood',
+            reefStyle: 'meadow',
+            shelterStyle: 'cottage',
+            ambientParticleStyle: 'petals',
+            butterflyZone: 'meadow',
+            doorLocalX: -0.36,
+            doorLocalZ: 1.35,
+            smokeOrigin: { x: 0.66, y: 2.42, z: -0.34 }
+          },
+          flock: {
+            species: 'sheep',
+            states: [
+              { id: 'Idle', label: '原地发呆' },
+              { id: 'Graze', label: '吃草' },
+              { id: 'Walk', label: '散步' },
+              { id: 'Jump', label: '蹦跳' }
+            ],
+            defaultResetState: 'Graze',
+            spawnPool: ['Graze', 'Walk', 'Idle', 'Jump'],
+            canGraze: true,
+            canVaultOverPeer: true,
+            canDustBath: false,
+            canSpit: false,
+            canWadeOasis: false,
+            avoidWaterForRest: false
+          },
+          guardian: {
+            species: 'cat',
+            states: [
+              { id: 'Sleep', label: '睡觉' },
+              { id: 'Scratch', label: '磨爪子' },
+              { id: 'Belly', label: '露肚皮' },
+              { id: 'Walk', label: '散步' },
+              { id: 'Sit', label: '坐着' }
+            ],
+            canClimbRoof: true,
+            canReefFish: true,
+            canHuntButterflies: true,
+            canScratchGrass: true,
+            canDigSand: false,
+            canPantCool: false
+          }
+        },
+        desert: {
+          id: 'desert',
+          label: '🏜️ 沙漠绿洲',
+          veilColor: '#f3e5cd',
+          addButtonLabel: '+ 添一只羊驼',
+          maxFlockToast: '绿洲最多容纳 24 只羊驼',
+          switchToast: '已切换至沙漠绿洲 🏜️',
+          resetToast: '已重置沙漠绿洲场景',
+          shearedToast: '秃毛小羊驼穿着中东白袍比什特、戴着头巾溜出帐篷啦！',
+          circleOutsideToast: '请在沙地或绿洲区域画圈召唤羊驼',
+          circleWaterToast: '绿洲水面上不能放羊驼，请在沙地或石阶上画圈',
+          circlePenToast: '羊驼这么可爱，别关进帐篷围栏里呀',
+          invalidDropToast: '水面或沙地外不能放置，已放回原位',
+          sunnyGroundHex: 0xd9bc84,
+          nightFlicker: true,
+          weatherModes: [
+            { id: 'sunny', label: '天气: 烈日晴空', bg: '#f6ebd6' },
+            { id: 'sunset', label: '天气: 大漠落日', bg: '#f2d3b0' },
+            { id: 'sandstorm', label: '天气: 轻柔风沙', bg: '#ebd5b0' },
+            { id: 'night', label: '天气: 大漠星夜', bg: '#1e263d' }
+          ],
+          env: {
+            terrainStyle: 'desert',
+            hasDunes: true,
+            bridgeStyle: 'stepping_stones',
+            reefStyle: 'desert',
+            shelterStyle: 'bedouin_tent',
+            ambientParticleStyle: 'sand_motes',
+            butterflyZone: 'oasis',
+            doorLocalX: 0.0,
+            doorLocalZ: 1.55,
+            smokeOrigin: { x: 1.28, y: 0.28, z: 0.86 }
+          },
+          flock: {
+            species: 'alpaca',
+            states: [
+              { id: 'Idle', label: '盘腿反刍' },
+              { id: 'Walk', label: '散步' },
+              { id: 'Jump', label: '蹦跳' },
+              { id: 'Spit', label: '吐口水' },
+              { id: 'DustBath', label: '沙浴打滚' }
+            ],
+            defaultResetState: 'Walk',
+            spawnPool: ['Walk', 'Idle', 'Jump', 'Spit', 'DustBath'],
+            canGraze: false,
+            canVaultOverPeer: false,
+            canDustBath: true,
+            canSpit: true,
+            canWadeOasis: true,
+            avoidWaterForRest: true
+          },
+          guardian: {
+            species: 'fennec',
+            states: [
+              { id: 'Sleep', label: '蜷缩打盹' },
+              { id: 'Listen', label: '雷达听音' },
+              { id: 'Dig', label: '刨沙掘洞' },
+              { id: 'Leap', label: '原地高跳' },
+              { id: 'Walk', label: '散步' },
+              { id: 'Sit', label: '坐着散热' }
+            ],
+            canClimbRoof: false,
+            canReefFish: false,
+            canHuntButterflies: false,
+            canScratchGrass: false,
+            canDigSand: true,
+            canPantCool: true
+          }
+        },
+        forest: {
+          id: 'forest',
+          label: '🌲 森林秘境',
+          veilColor: '#e6eee0',
+          addButtonLabel: '+ 添一只松鼠',
+          maxFlockToast: '森林最多容纳 24 只胖松鼠',
+          switchToast: '已切换至森林秘境 🌲',
+          resetToast: '已重置森林秘境场景',
+          shearedToast: '胖松鼠的背篓又装满坚果啦，全场欢呼庆祝！',
+          circleOutsideToast: '请在林间空地画圈召唤胖松鼠',
+          circleWaterToast: '小溪里不能放松鼠，请在林地或独木桥上画圈',
+          circlePenToast: '树洞仓库里装不下更多松鼠啦',
+          invalidDropToast: '溪水或林地外不能放置，已放回原位',
+          sunnyGroundHex: 0x7a9e58,
+          nightFlicker: true,
+          weatherModes: [
+            { id: 'sunny', label: '天气: 晴日斑驳', bg: '#eef2e6' },
+            { id: 'mist', label: '天气: 森林晨雾', bg: '#e2ece9' },
+            { id: 'autumn', label: '天气: 秋风落叶', bg: '#f3e6d3' },
+            { id: 'firefly', label: '天气: 萤火夏夜', bg: '#17242a' }
+          ],
+          env: {
+            terrainStyle: 'forest',
+            hasDunes: false,
+            bridgeStyle: 'log',
+            reefStyle: 'forest',
+            shelterStyle: 'treehouse',
+            ambientParticleStyle: 'forest_leaves',
+            butterflyZone: 'meadow',
+            doorLocalX: 0.0,
+            doorLocalZ: 1.38,
+            smokeOrigin: { x: 0.56, y: 2.52, z: -0.24 }
+          },
+          flock: {
+            species: 'squirrel',
+            states: [
+              { id: 'Nibble', label: '狂塞颊囊' },
+              { id: 'Idle', label: '机警冻住' },
+              { id: 'Walk', label: '冲刺急刹' },
+              { id: 'Jump', label: '树间窜跳' },
+              { id: 'Bury', label: '偷瞄藏宝' }
+            ],
+            defaultResetState: 'Nibble',
+            spawnPool: ['Nibble', 'Idle', 'Walk', 'Jump', 'Bury'],
+            canGraze: false,
+            canVaultOverPeer: false,
+            canDustBath: false,
+            canSpit: false,
+            canWadeOasis: false,
+            canBuryNut: true,
+            canNibbleNut: true,
+            avoidWaterForRest: false
+          },
+          guardian: {
+            species: 'red_panda',
+            states: [
+              { id: 'Sleep', label: '摊饼抱尾' },
+              { id: 'Bamboo', label: '端坐啃竹' },
+              { id: 'Threaten', label: '虚张声势' },
+              { id: 'Tumble', label: '追尾翻滚' },
+              { id: 'Walk', label: '蹦跳巡林' },
+              { id: 'Sit', label: '坐着卖萌' }
+            ],
+            canClimbRoof: false,
+            canReefFish: false,
+            canHuntButterflies: false,
+            canScratchGrass: false,
+            canDigSand: false,
+            canPantCool: false,
+            canThreatenStand: true
+          }
+        }
+      };
+
+      const requestedWorld = params.get('world');
+      let currentWorld = WORLD_REGISTRY[requestedWorld] ? requestedWorld : 'meadow';
+      function getWorldConfig() {
+        return WORLD_REGISTRY[currentWorld] || WORLD_REGISTRY.meadow;
+      }
+      function getWorldRules() {
+        return getWorldConfig();
+      }
 
       const stage = document.getElementById('stage');
       const canvas = document.getElementById('webgl-canvas');
@@ -620,7 +845,11 @@
       const btnReset = document.getElementById('btn-reset');
       const btnDuplicate = document.getElementById('btn-duplicate');
       const btnDelete = document.getElementById('btn-delete');
-      const worldTabs = Array.from(document.querySelectorAll('.world-tab'));
+      const worldSwitcherEl = document.getElementById('world-switcher');
+      worldSwitcherEl.innerHTML = Object.values(WORLD_REGISTRY).map(w => (
+        `<button class="world-tab${w.id === currentWorld ? ' active' : ''}" data-world="${w.id}" type="button" role="tab" aria-selected="${w.id === currentWorld ? 'true' : 'false'}">${w.label}</button>`
+      )).join('');
+      const worldTabs = Array.from(worldSwitcherEl.querySelectorAll('.world-tab'));
       const worldVeilEl = document.getElementById('world-veil');
       const btnWeather = document.getElementById('btn-weather');
       const btnOrbitToggle = document.getElementById('btn-orbit-toggle');
@@ -1246,6 +1475,129 @@
       }
       const desertTex = createDesertTextures();
 
+      function createForestTextures() {
+        const w = 1024;
+        const h = 768;
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d');
+
+        // Deep mossy woodland base gradient (matching matte clay/felt storybook aesthetic)
+        const baseGrad = ctx.createLinearGradient(0, 0, w, h);
+        baseGrad.addColorStop(0.0, '#6a944d');
+        baseGrad.addColorStop(0.35, '#598240');
+        baseGrad.addColorStop(0.70, '#729a52');
+        baseGrad.addColorStop(1.0, '#4f7638');
+        ctx.fillStyle = baseGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        function toUV(wx, wz) {
+          return [
+            ((wx - TERRAIN_MIN_X) / SLAB_W) * w,
+            ((wz + SLAB_D / 2) / SLAB_D) * h
+          ];
+        }
+
+        // Soft dappled sunlit moss & woodland floor patches
+        const forestPatches = [
+          [-10.5, -4.2, 4.4, 'rgba(136, 174, 92, 0.34)'],
+          [-2.0, 2.8, 5.0, 'rgba(128, 166, 86, 0.30)'],
+          [5.5, -2.5, 4.6, 'rgba(72, 108, 52, 0.32)'],
+          [9.2, -5.0, 4.4, 'rgba(116, 148, 76, 0.28)'],
+          [-6.5, -1.5, 3.8, 'rgba(84, 122, 60, 0.28)'],
+          [2.8, 5.2, 4.2, 'rgba(146, 178, 98, 0.26)']
+        ];
+        forestPatches.forEach(([px, pz, pr, col]) => {
+          const [u, v] = toUV(px, pz);
+          const rad = (pr / SLAB_W) * w;
+          const g = ctx.createRadialGradient(u, v, rad * 0.1, u, v, rad);
+          g.addColorStop(0, col);
+          g.addColorStop(1, 'rgba(92, 130, 68, 0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(u - rad, v - rad, rad * 2, rad * 2);
+        });
+
+        // Soft woodland leaf-litter path
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        for (let i = 0; i <= 70; i++) {
+          const z = -SLAB_D / 2 - 0.5 + (SLAB_D + 1.0) * (i / 70);
+          const [px, py] = toUV(getPathCenterX(z), z);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = 'rgba(128, 92, 56, 0.34)';
+        ctx.lineWidth = 40;
+        ctx.stroke();
+        ctx.strokeStyle = '#a88159';
+        ctx.lineWidth = 24;
+        ctx.stroke();
+        ctx.strokeStyle = '#be9a72';
+        ctx.lineWidth = 12;
+        ctx.stroke();
+
+        // Clear cool emerald-teal forest brook with mossy banks
+        ctx.beginPath();
+        for (let i = 0; i <= 90; i++) {
+          const z = -SLAB_D / 2 - 0.5 + (SLAB_D + 1.0) * (i / 90);
+          const [rx, ry] = toUV(getRiverCenterX(z), z);
+          if (i === 0) ctx.moveTo(rx, ry);
+          else ctx.lineTo(rx, ry);
+        }
+        ctx.strokeStyle = 'rgba(64, 102, 54, 0.55)';
+        ctx.lineWidth = 132;
+        ctx.stroke();
+        ctx.strokeStyle = '#8b9d74';
+        ctx.lineWidth = 96;
+        ctx.stroke();
+        ctx.strokeStyle = '#5da9a6';
+        ctx.lineWidth = 76;
+        ctx.stroke();
+        ctx.strokeStyle = '#3f8c91';
+        ctx.lineWidth = 52;
+        ctx.stroke();
+        ctx.strokeStyle = '#2d6e78';
+        ctx.lineWidth = 26;
+        ctx.stroke();
+
+        // Subtle organic felt/moss micro-grain
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+        let seed = 31415;
+        function rand() {
+          seed = (seed * 16807) % 2147483647;
+          return (seed - 1) / 2147483646;
+        }
+        for (let i = 0; i < data.length; i += 4) {
+          const n = (rand() - 0.5) * 16;
+          data[i] = Math.max(0, Math.min(255, data[i] + n));
+          data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + n));
+          data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + n));
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        // Fallen amber leaves, clover specks & mossy dots
+        const woodlandDots = ['#d98b3c', '#c85a32', '#e5ba5c', '#98bd6e', '#e8dfd1'];
+        for (let i = 0; i < 160; i++) {
+          const fx = TERRAIN_CENTER_X + (rand() - 0.5) * (SLAB_W - 1.5);
+          const fz = (rand() - 0.5) * (SLAB_D - 1.5);
+          if (isInRiver(fx, fz, 0.55)) continue;
+          const [u, v] = toUV(fx, fz);
+          ctx.fillStyle = woodlandDots[Math.floor(rand() * woodlandDots.length)];
+          ctx.beginPath();
+          ctx.ellipse(u, v, 1.4 + rand() * 2.1, 1.0 + rand() * 1.4, rand() * Math.PI, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const colorTex = new THREE.CanvasTexture(c);
+        colorTex.encoding = THREE.sRGBEncoding;
+        colorTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        return { colorTex, alphaTex: meadowTex.alphaTex };
+      }
+      const forestTex = createForestTextures();
+
       const worldEnvGroup = new THREE.Group();
       dioramaGroup.add(worldEnvGroup);
 
@@ -1462,8 +1814,13 @@
       function buildRiverReef() {
         const g = new THREE.Group();
         const baseY = getTerrainHeight(REEF_X, REEF_Z);
-        const isDes = currentWorld === 'desert';
-        const rockMats = isDes ? [
+        const reefStyle = getWorldConfig().env.reefStyle;
+        const isDes = reefStyle === 'desert';
+        const rockMats = reefStyle === 'forest' ? [
+          new THREE.MeshStandardMaterial({ color: 0x6f7a68, bumpMap: feltBumpTex, bumpScale: 0.025, roughness: 0.95 }),
+          new THREE.MeshStandardMaterial({ color: 0x5c7d48, bumpMap: feltBumpTex, bumpScale: 0.026, roughness: 0.95 }),
+          new THREE.MeshStandardMaterial({ color: 0x858e7e, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.93 })
+        ] : isDes ? [
           new THREE.MeshStandardMaterial({ color: 0x9c5533, bumpMap: feltBumpTex, bumpScale: 0.025, roughness: 0.94 }),
           new THREE.MeshStandardMaterial({ color: 0x7d3f22, bumpMap: feltBumpTex, bumpScale: 0.025, roughness: 0.94 }),
           new THREE.MeshStandardMaterial({ color: 0xb36a44, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.93 })
@@ -1665,7 +2022,7 @@
       ];
 
       function getDesertDuneHeight(x, z) {
-        if (currentWorld !== 'desert') return 0;
+        if (!getWorldConfig().env.hasDunes) return 0;
         let maxH = 0;
         for (let i = 0; i < DESERT_DUNES.length; i++) {
           const dn = DESERT_DUNES[i];
@@ -1686,8 +2043,12 @@
 
       function getGroundY(x, z) {
         if (isOnBridge(x, z, 0.12)) {
-          if (currentWorld === 'desert') {
+          const bStyle = getWorldConfig().env.bridgeStyle;
+          if (bStyle === 'stepping_stones') {
             return getTerrainHeight(x, z) + 0.095;
+          }
+          if (bStyle === 'log') {
+            return getTerrainHeight(x, z) + 0.18;
           }
           return Math.max(getBridgeElevation(x), getTerrainHeight(x, z));
         }
@@ -1890,6 +2251,107 @@
         return fordGroup;
       }
 
+      // Wooden Tree-Stump Stepping Bridge for Forest Sanctuary (木墩子桥)
+      function buildForestLogBridge() {
+        const bridgeGroup = new THREE.Group();
+        // Procedural concentric tree-ring top texture for each wooden stump
+        function createStumpRingTex() {
+          const c = document.createElement('canvas');
+          c.width = 128; c.height = 128;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#e6c796';
+          ctx.fillRect(0, 0, 128, 128);
+          ctx.strokeStyle = '#c49a62';
+          ctx.lineWidth = 3;
+          [14, 28, 42, 54].forEach(r => {
+            ctx.beginPath();
+            ctx.arc(64, 64, r, 0, Math.PI * 2);
+            ctx.stroke();
+          });
+          ctx.fillStyle = '#b38249';
+          ctx.beginPath();
+          ctx.arc(64, 64, 7, 0, Math.PI * 2);
+          ctx.fill();
+          const tex = new THREE.CanvasTexture(c);
+          tex.encoding = THREE.sRGBEncoding;
+          return tex;
+        }
+        const ringTex = createStumpRingTex();
+        const barkMats = [
+          new THREE.MeshStandardMaterial({ color: 0x6e4729, bumpMap: feltBumpTex, bumpScale: 0.028, roughness: 0.95 }),
+          new THREE.MeshStandardMaterial({ color: 0x7d5332, bumpMap: feltBumpTex, bumpScale: 0.026, roughness: 0.94 })
+        ];
+        const ringTopMat = new THREE.MeshStandardMaterial({ map: ringTex, bumpMap: feltBumpTex, bumpScale: 0.014, roughness: 0.90 });
+        const mossMat = new THREE.MeshStandardMaterial({ color: 0x629144, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.95 });
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xc94a36, bumpMap: feltBumpTex, bumpScale: 0.016, roughness: 0.90 });
+        const foamMat = new THREE.MeshBasicMaterial({
+          color: 0xffffff, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false
+        });
+
+        // Main staggered row of thick round tree stumps spanning the brook
+        const stumps = [
+          { dx: -1.78, dz:  0.04, r: 0.36, h: 0.32, m: 0, moss: true,  shroom: false },
+          { dx: -1.18, dz: -0.16, r: 0.40, h: 0.36, m: 1, moss: false, shroom: true  },
+          { dx: -0.56, dz:  0.12, r: 0.42, h: 0.38, m: 0, moss: true,  shroom: false },
+          { dx:  0.04, dz: -0.10, r: 0.43, h: 0.39, m: 1, moss: false, shroom: false },
+          { dx:  0.64, dz:  0.14, r: 0.40, h: 0.37, m: 0, moss: true,  shroom: true  },
+          { dx:  1.22, dz: -0.12, r: 0.39, h: 0.35, m: 1, moss: false, shroom: false },
+          { dx:  1.80, dz:  0.04, r: 0.36, h: 0.32, m: 0, moss: true,  shroom: false }
+        ];
+        stumps.forEach((st, idx) => {
+          const sx = BRIDGE_X + st.dx;
+          const sz = BRIDGE_Z + st.dz;
+          const sy = getTerrainHeight(sx, sz);
+
+          const stump = new THREE.Mesh(
+            new THREE.CylinderGeometry(st.r, st.r * 1.12, st.h, 14),
+            [barkMats[st.m], ringTopMat, barkMats[st.m]]
+          );
+          stump.position.set(sx, sy + 0.18 - st.h * 0.5, sz);
+          stump.rotation.y = idx * 0.85;
+          stump.castShadow = true;
+          stump.receiveShadow = true;
+          bridgeGroup.add(stump);
+
+          // Decorative smaller side-stump pilings flanking the crossing
+          if (idx % 2 === 1) {
+            const sideDir = idx === 1 ? 1 : -1;
+            const miniR = st.r * 0.56;
+            const miniH = st.h * 0.72;
+            const mini = new THREE.Mesh(
+              new THREE.CylinderGeometry(miniR, miniR * 1.12, miniH, 10),
+              [barkMats[1 - st.m], ringTopMat, barkMats[1 - st.m]]
+            );
+            mini.position.set(sx + 0.12, sy + 0.11 - miniH * 0.5, sz + sideDir * (st.r + miniR * 0.62));
+            mini.castShadow = true;
+            mini.receiveShadow = true;
+            bridgeGroup.add(mini);
+          }
+
+          if (st.moss) {
+            const moss = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), mossMat);
+            moss.scale.set(1.25, 0.52, 0.95);
+            moss.position.set(sx + st.r * 0.78, sy + 0.13, sz + 0.12);
+            bridgeGroup.add(moss);
+          }
+          if (st.shroom) {
+            const sh = new THREE.Mesh(new THREE.SphereGeometry(0.088, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), capMat);
+            sh.scale.set(1.15, 0.68, 1.05);
+            sh.position.set(sx - st.r * 0.72, sy + 0.10, sz + 0.24);
+            bridgeGroup.add(sh);
+          }
+          if (isInRiver(sx, sz, -0.05)) {
+            const halo = new THREE.Mesh(new THREE.RingGeometry(st.r * 1.04, st.r * 1.24, 20), foamMat);
+            halo.rotation.x = -Math.PI / 2;
+            halo.position.set(sx, sy + 0.044, sz);
+            halo.renderOrder = 3;
+            bridgeGroup.add(halo);
+          }
+        });
+
+        return bridgeGroup;
+      }
+
       // ------------------------------------------------------------------
       // 3.6 Upper-Right Storybook Cottage & Wooden Sheep Pen (小房子 + 羊圈)
       // ------------------------------------------------------------------
@@ -1903,6 +2365,18 @@
       const extraSmokeRings = [];
       let cottageDoorPivot = null;
       let cottageHitMesh = null;
+      let forestCrateNutsGroup = null;
+      let forestCrateGroup = null;
+      let forestCrateHitMesh = null;
+      let forestCrateNutCount = 0;
+      const forestNuts = [];
+      const fallingNuts = [];
+      const fountainNuts = [];
+      let pendingFrenzyOnLand = false;
+      const buryMounds = [];
+      const forestPineHitMeshes = [];
+      const forestGlowMushroomMats = [];
+      let forestNutSpawnTimer = 2.5;
       let cottageWindowMat = null;
       let cottageWarmLight = null;
       let cottageLightsOn = true;
@@ -1925,7 +2399,9 @@
         // --- A. Cozy Matte-Clay Cottage (Meadow) OR Bedouin Triangular Goat-Hair Tent (Desert) ---
         const houseGroup = new THREE.Group();
         const houseY = getTerrainHeight(HOUSE_X, HOUSE_Z);
-        const isDesert = currentWorld === 'desert';
+        const shelterStyle = getWorldConfig().env.shelterStyle;
+        const isDesert = shelterStyle === 'bedouin_tent';
+        const isTreehouse = shelterStyle === 'treehouse';
 
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xf5ebd7, bumpMap: feltBumpTex, bumpScale: 0.015, roughness: 0.94 });
         const stoneBaseMat = new THREE.MeshStandardMaterial({ color: 0xcbc2b0, bumpMap: feltBumpTex, bumpScale: 0.02, roughness: 0.95 });
@@ -2123,6 +2599,112 @@
           const smokeGeo = new THREE.SphereGeometry(0.11, 10, 8);
           for (let k = 0; k < 3; k++) {
             const sMat = new THREE.MeshStandardMaterial({ color: 0xfff8eb, roughness: 0.96, transparent: true, opacity: 0.62 });
+            const puff = new THREE.Mesh(smokeGeo, sMat);
+            houseGroup.add(puff);
+            chimneySmokePuffs.push({ mesh: puff, phase: k / 3 });
+          }
+        } else if (isTreehouse) {
+          // Cozy Storybook Hollow-Tree Cabin with Mushroom-Cap Roof & Hobbit Round Door (树洞木屋)
+          const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7b5031, bumpMap: feltBumpTex, bumpScale: 0.026, roughness: 0.94 });
+          const barkDarkMat = new THREE.MeshStandardMaterial({ color: 0x5c3922, bumpMap: feltBumpTex, bumpScale: 0.024, roughness: 0.95 });
+          const mossCapMat = new THREE.MeshStandardMaterial({ color: 0x5a8c42, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.94 });
+          const mushCapMat = new THREE.MeshStandardMaterial({ color: 0xc94934, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.90 });
+          const spotMat = new THREE.MeshStandardMaterial({ color: 0xfbf3e0, roughness: 0.92 });
+          const doorWoodMat = new THREE.MeshStandardMaterial({ color: 0xa67346, bumpMap: feltBumpTex, bumpScale: 0.016, roughness: 0.91 });
+
+          // Flared mossy root base
+          const rootBase = new THREE.Mesh(new THREE.CylinderGeometry(1.08, 1.38, 0.42, 14), trunkMat);
+          rootBase.position.y = 0.18;
+          rootBase.castShadow = true; rootBase.receiveShadow = true;
+          houseGroup.add(rootBase);
+
+          // Main gnarled hollow trunk body
+          const trunkBody = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.12, 1.42, 14), trunkMat);
+          trunkBody.position.y = 0.98;
+          trunkBody.castShadow = true; trunkBody.receiveShadow = true;
+          houseGroup.add(trunkBody);
+
+          // Exposed buttress roots
+          for (let r = 0; r < 5; r++) {
+            const a = (r / 5) * Math.PI * 2 + 0.3;
+            const rt = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 0.72, 7), barkDarkMat);
+            rt.position.set(Math.cos(a) * 1.05, 0.22, Math.sin(a) * 1.05);
+            rt.rotation.z = -Math.cos(a) * 0.55;
+            rt.rotation.x = Math.sin(a) * 0.55;
+            rt.castShadow = true;
+            houseGroup.add(rt);
+          }
+
+          // Giant storybook spotted mushroom-cap roof + mossy trim
+          const roofCap = new THREE.Mesh(new THREE.SphereGeometry(1.48, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.54), mushCapMat);
+          roofCap.scale.set(1.08, 0.72, 1.04);
+          roofCap.position.y = 1.54;
+          roofCap.castShadow = true; roofCap.receiveShadow = true;
+          houseGroup.add(roofCap);
+
+          const gillRim = new THREE.Mesh(new THREE.CylinderGeometry(1.38, 1.15, 0.14, 20), spotMat);
+          gillRim.position.y = 1.54;
+          houseGroup.add(gillRim);
+
+          [
+            [0.0, 2.52, 0.12, 0.20], [0.76, 2.26, 0.46, 0.17], [-0.72, 2.22, 0.52, 0.16],
+            [0.42, 2.34, -0.70, 0.16], [-0.58, 2.18, -0.64, 0.15], [1.05, 1.92, -0.15, 0.14], [-1.04, 1.94, 0.08, 0.14]
+          ].forEach(([sx, sy, sz, sr]) => {
+            const sp = new THREE.Mesh(new THREE.SphereGeometry(sr, 10, 8), spotMat);
+            sp.scale.set(1.0, 0.55, 1.0);
+            sp.position.set(sx, sy, sz);
+            houseGroup.add(sp);
+          });
+
+          // Moss cushions along roof eaves
+          [-0.95, 0.88].forEach((mx, idx) => {
+            const mPuff = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), mossCapMat);
+            mPuff.scale.set(1.2, 0.58, 0.9);
+            mPuff.position.set(mx, 1.62, idx === 0 ? 0.58 : -0.45);
+            houseGroup.add(mPuff);
+          });
+
+          // Round Hobbit-style wooden front door (pivots open when squirrels exit!)
+          const doorRing = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.075, 10, 20), barkDarkMat);
+          doorRing.position.set(0, 0.58, 1.02);
+          houseGroup.add(doorRing);
+
+          cottageDoorPivot = new THREE.Group();
+          cottageDoorPivot.position.set(-0.38, 0.58, 1.03);
+          const roundDoor = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.08, 18), doorWoodMat);
+          roundDoor.rotation.x = Math.PI / 2;
+          roundDoor.position.set(0.38, 0, 0);
+          roundDoor.castShadow = true;
+          cottageDoorPivot.add(roundDoor);
+          const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.45, metalness: 0.35 }));
+          knob.position.set(0.64, 0, 0.05);
+          cottageDoorPivot.add(knob);
+          houseGroup.add(cottageDoorPivot);
+
+          // Glowing round porthole window on upper front-right & side
+          [
+            { x: 0.68, y: 1.12, z: 0.78, ry: 0.68 },
+            { x: -0.72, y: 1.08, z: 0.72, ry: -0.72 }
+          ].forEach(wp => {
+            const wGrp = new THREE.Group();
+            wGrp.position.set(wp.x, wp.y, wp.z);
+            wGrp.rotation.y = wp.ry;
+            const wRim = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.045, 8, 16), barkDarkMat);
+            wGrp.add(wRim);
+            const wPane = new THREE.Mesh(new THREE.CircleGeometry(0.18, 14), windowGlowMat);
+            wPane.position.z = 0.01;
+            wGrp.add(wPane);
+            houseGroup.add(wGrp);
+          });
+
+          // Cozy stone-and-twig chimney + rising woodsmoke
+          const chim = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.19, 0.78, 9), stoneBaseMat);
+          chim.position.set(0.56, 2.22, -0.24);
+          chim.castShadow = true;
+          houseGroup.add(chim);
+          const smokeGeo = new THREE.SphereGeometry(0.12, 10, 8);
+          for (let k = 0; k < 3; k++) {
+            const sMat = new THREE.MeshStandardMaterial({ color: 0xf4f2eb, roughness: 0.96, transparent: true, opacity: 0.62 });
             const puff = new THREE.Mesh(smokeGeo, sMat);
             houseGroup.add(puff);
             chimneySmokePuffs.push({ mesh: puff, phase: k / 3 });
@@ -2403,7 +2985,71 @@
           }
           basket.position.set(bx, by, bz);
           farmGroup.add(basket);
+        } else if (isTreehouse) {
+          // Forest treehouse nut-storage yard: open wooden collection crate at the harvest spot + stacked woodland boxes
+          const boxWoodMat = new THREE.MeshStandardMaterial({ color: 0xa47142, bumpMap: feltBumpTex, bumpScale: 0.018, roughness: 0.92 });
+          const boxTrimMat = new THREE.MeshStandardMaterial({ color: 0x7a4f2b, bumpMap: feltBumpTex, bumpScale: 0.018, roughness: 0.94 });
+          const boxDarkMat = new THREE.MeshStandardMaterial({ color: 0x3b2414, roughness: 0.96 });
+
+          // Open nut-receiving crate right at (PEN_X - 1.15, PEN_Z + 0.35) where shaken acorns fall!
+          const rx = PEN_X - 1.15;
+          const rz = PEN_Z + 0.35;
+          const ry = getTerrainHeight(rx, rz);
+          const recCrate = new THREE.Group();
+          const cW = 0.92, cH = 0.34, cD = 0.78, wallT = 0.065;
+          const basePlank = new THREE.Mesh(new THREE.BoxGeometry(cW, 0.06, cD), boxDarkMat);
+          basePlank.position.y = 0.03; basePlank.receiveShadow = true; recCrate.add(basePlank);
+          const frontWall = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, wallT), boxWoodMat);
+          frontWall.position.set(0, cH * 0.5, cD * 0.5 - wallT * 0.5); frontWall.castShadow = true; frontWall.receiveShadow = true; recCrate.add(frontWall);
+          const backWall = new THREE.Mesh(new THREE.BoxGeometry(cW, cH, wallT), boxWoodMat);
+          backWall.position.set(0, cH * 0.5, -cD * 0.5 + wallT * 0.5); backWall.castShadow = true; backWall.receiveShadow = true; recCrate.add(backWall);
+          const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, cH, cD - wallT * 2), boxWoodMat);
+          leftWall.position.set(-cW * 0.5 + wallT * 0.5, cH * 0.5, 0); leftWall.castShadow = true; leftWall.receiveShadow = true; recCrate.add(leftWall);
+          const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallT, cH, cD - wallT * 2), boxWoodMat);
+          rightWall.position.set(cW * 0.5 - wallT * 0.5, cH * 0.5, 0); rightWall.castShadow = true; rightWall.receiveShadow = true; recCrate.add(rightWall);
+          [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.085, cH + 0.04, 0.085), boxTrimMat);
+            post.position.set(sx * (cW * 0.5 - 0.03), cH * 0.5 + 0.01, sz * (cD * 0.5 - 0.03));
+            post.castShadow = true; recCrate.add(post);
+          });
+          forestCrateNutsGroup = new THREE.Group();
+          forestCrateNutCount = 0;
+          recCrate.add(forestCrateNutsGroup);
+          const crateHit = new THREE.Mesh(
+            new THREE.BoxGeometry(1.18, 0.72, 1.02),
+            new THREE.MeshBasicMaterial({ visible: false })
+          );
+          crateHit.position.set(0, 0.28, 0);
+          crateHit.userData.isForestCrate = true;
+          recCrate.add(crateHit);
+          recCrate.userData.shakeTimer = 0;
+          forestCrateGroup = recCrate;
+          forestCrateHitMesh = crateHit;
+
+          recCrate.position.set(rx, ry, rz);
+          recCrate.rotation.y = 0.08;
+          farmGroup.add(recCrate);
+
+          // Pre-seed 4 acorns at the bottom of the crate so it reads as a nut storage box immediately
+          for (let k = 0; k < 4; k++) {
+            const n = createNutMesh(1.15);
+            n.position.set((k - 1.5) * 0.16, 0.10, ((k % 2) - 0.5) * 0.18);
+            n.rotation.set(0.3 * k, k * 1.1, 0.2);
+            forestCrateNutsGroup.add(n);
+            forestCrateNutCount++;
+          }
+
+          // Backup stacked storage boxes in back-left corner
+          [[xL + 0.58, zT + 0.48, 0.20, 0.12], [xL + 1.16, zT + 0.46, 0.18, -0.08]].forEach(([bx, bz, bh, br]) => {
+            const sb = new THREE.Mesh(new THREE.BoxGeometry(0.48, bh * 2, 0.44), boxTrimMat);
+            sb.position.set(bx, getTerrainHeight(bx, bz) + bh, bz);
+            sb.rotation.y = br; sb.castShadow = true; sb.receiveShadow = true;
+            farmGroup.add(sb);
+          });
         } else {
+          forestCrateNutsGroup = null;
+          forestCrateGroup = null;
+          forestCrateHitMesh = null;
           addHayBale(xL + 0.58, zT + 0.46, 0.17, 0.12);
           addHayBale(xL + 1.24, zT + 0.44, 0.17, -0.08);
           addHayBale(xL + 0.90, zT + 0.46, 0.49, 0.05);
@@ -2606,21 +3252,263 @@
         opacity: 0.85
       });
 
+      const nutBodyMat = new THREE.MeshStandardMaterial({ color: 0xc97b2c, bumpMap: feltBumpTex, bumpScale: 0.015, roughness: 0.72 });
+      const nutCapMat = new THREE.MeshStandardMaterial({ color: 0x523018, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.94 });
+      const nutStemMat = new THREE.MeshStandardMaterial({ color: 0x3f2411, roughness: 0.94 });
+      const nutBodyGeo = new THREE.SphereGeometry(0.082, 10, 8);
+      const nutCapGeo = new THREE.SphereGeometry(0.088, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.54);
+      const nutStemGeo = new THREE.CylinderGeometry(0.013, 0.016, 0.048, 6);
+
+      function createNutMesh(scale) {
+        const sc = scale || 1.0;
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(nutBodyGeo, nutBodyMat);
+        body.scale.set(0.88, 1.15, 0.88);
+        body.castShadow = true;
+        g.add(body);
+        const cap = new THREE.Mesh(nutCapGeo, nutCapMat);
+        cap.position.y = 0.022;
+        cap.castShadow = true;
+        g.add(cap);
+        const stem = new THREE.Mesh(nutStemGeo, nutStemMat);
+        stem.position.y = 0.098;
+        g.add(stem);
+        g.scale.setScalar(sc);
+        return g;
+      }
+
+      function spawnForestGroundNut(dropFromTree, originTree) {
+        if (getWorldConfig().flock.species !== 'squirrel') return null;
+        if (forestNuts.length >= 26) return null;
+        let nx = 0, nz = 0, startY = 0;
+        let valid = false;
+        for (let tries = 0; tries < 28; tries++) {
+          const underPine = originTree ? true : (Math.random() < 0.52);
+          if (underPine && treeSpecs.length > 0) {
+            const tr = originTree || treeSpecs[(Math.random() * treeSpecs.length) | 0];
+            const ang = Math.random() * Math.PI * 2;
+            const rad = 0.90 + Math.random() * 2.25;
+            nx = tr.x + Math.cos(ang) * rad;
+            nz = tr.z + Math.sin(ang) * rad;
+            startY = dropFromTree ? (getTerrainHeight(nx, nz) + 1.9 + Math.random() * 0.7) : (getTerrainHeight(nx, nz) + 0.09);
+          } else {
+            nx = TERRAIN_CENTER_X + (Math.random() - 0.5) * (SLAB_W - 3.2);
+            nz = (Math.random() - 0.5) * (SLAB_D - 2.8);
+            startY = dropFromTree ? (getTerrainHeight(nx, nz) + 1.1 + Math.random() * 0.5) : (getTerrainHeight(nx, nz) + 0.09);
+          }
+          if (nx < TERRAIN_MIN_X + 1.4 || nx > TERRAIN_MAX_X - 1.4 || Math.abs(nz) > SLAB_D / 2 - 1.3) continue;
+          if (isInRiver(nx, nz, 0.90) || isInsidePen(nx, nz, 0.95) || isInsideHouseFootprint(nx, nz, 0.8)) continue;
+          const tooClose = forestNuts.some(fn => Math.hypot(fn.x - nx, fn.z - nz) < 0.62);
+          if (!tooClose) { valid = true; break; }
+        }
+        if (!valid) return null;
+        const mesh = createNutMesh(1.42);
+        const groundY = getTerrainHeight(nx, nz) + 0.09;
+        mesh.position.set(nx, startY, nz);
+        mesh.rotation.set((Math.random() - 0.5) * 0.6, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.6);
+        worldEnvGroup.add(mesh);
+        const item = {
+          mesh,
+          x: nx,
+          z: nz,
+          groundY,
+          vy: 0,
+          falling: Boolean(dropFromTree && startY > groundY + 0.15),
+          scalePop: dropFromTree ? 0.15 : 1.0,
+          claimedBy: null,
+          phase: Math.random() * Math.PI * 2
+        };
+        if (dropFromTree) mesh.scale.setScalar(0.15 * 1.42);
+        forestNuts.push(item);
+        return item;
+      }
+
+      function updateForestNuts(dt, elapsed) {
+        if (getWorldConfig().flock.species !== 'squirrel') return;
+        for (let i = 0; i < forestNuts.length; i++) {
+          const fn = forestNuts[i];
+          if (fn.scalePop < 1.0) {
+            fn.scalePop = Math.min(1.0, fn.scalePop + dt * 4.2);
+            fn.mesh.scale.setScalar(fn.scalePop * 1.42);
+          }
+          if (fn.falling) {
+            fn.vy -= 9.8 * dt;
+            fn.mesh.position.y += fn.vy * dt;
+            fn.mesh.rotation.x += dt * 4.5;
+            if (fn.mesh.position.y <= fn.groundY) {
+              fn.mesh.position.y = fn.groundY;
+              fn.falling = false;
+              fn.vy = 0;
+            }
+          }
+        }
+        forestNutSpawnTimer -= dt;
+        if (forestNutSpawnTimer <= 0) {
+          if (forestNuts.length < 20) spawnForestGroundNut(true);
+          forestNutSpawnTimer = 1.2 + Math.random() * 1.3;
+        }
+      }
+
+      const moundSoilMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, bumpMap: feltBumpTex, bumpScale: 0.028, roughness: 0.96 });
+      const moundGeo = new THREE.SphereGeometry(0.18, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55);
+
+      function spawnBuryMound(x, z) {
+        const g = new THREE.Group();
+        const dirt = new THREE.Mesh(moundGeo, moundSoilMat);
+        dirt.scale.set(1.22, 0.52, 1.16);
+        dirt.receiveShadow = true; dirt.castShadow = true;
+        g.add(dirt);
+        const capTip = new THREE.Mesh(nutCapGeo, nutCapMat);
+        capTip.scale.setScalar(0.85);
+        capTip.position.set(0, 0.075, 0);
+        g.add(capTip);
+        g.position.set(x, getGroundY(x, z) - 0.01, z);
+        g.scale.setScalar(0.1);
+        worldEnvGroup.add(g);
+        buryMounds.push({ mesh: g, life: 0, maxLife: 7.5 });
+      }
+
+      function updateBuryMounds(dt) {
+        for (let i = buryMounds.length - 1; i >= 0; i--) {
+          const bm = buryMounds[i];
+          bm.life += dt;
+          if (bm.life >= bm.maxLife) {
+            worldEnvGroup.remove(bm.mesh);
+            buryMounds.splice(i, 1);
+            continue;
+          }
+          const inS = Math.min(1, bm.life * 4.5);
+          const outS = Math.min(1, (bm.maxLife - bm.life) * 2.0);
+          bm.mesh.scale.setScalar(Math.max(0.01, inS * outS));
+        }
+      }
+
+      function triggerCrateFountain() {
+        if (!forestCrateGroup || !forestCrateNutsGroup || getWorldConfig().flock.species !== 'squirrel') return;
+        forestCrateGroup.userData.shakeTimer = 0.7;
+        // Empty most stored nuts back out into the forest (keep 3 base nuts in crate)
+        while (forestCrateNutsGroup.children.length > 3) {
+          forestCrateNutsGroup.remove(forestCrateNutsGroup.children[forestCrateNutsGroup.children.length - 1]);
+        }
+        forestCrateNutCount = forestCrateNutsGroup.children.length;
+
+        const startX = PEN_X - 1.15;
+        const startZ = PEN_Z + 0.35;
+        const startY = getTerrainHeight(startX, startZ) + 0.36;
+        const launchCount = 8;
+        for (let k = 0; k < launchCount; k++) {
+          let tx = startX, tz = startZ;
+          for (let tries = 0; tries < 20; tries++) {
+            const ang = Math.PI * 0.45 + Math.random() * Math.PI * 0.95; // arc out toward open forest
+            const dist = 3.2 + Math.random() * 7.5;
+            const cx = startX + Math.cos(ang) * dist;
+            const cz = startZ + Math.sin(ang) * dist;
+            if (cx >= SLAB_MIN_X + 0.8 && cx <= SLAB_MAX_X - 0.8 && Math.abs(cz) <= SLAB_MARGIN_Z - 0.8 && !isInRiver(cx, cz, 0.95) && !isInsidePen(cx, cz, 0.95)) {
+              tx = cx; tz = cz; break;
+            }
+          }
+          const nutMesh = createNutMesh(1.42);
+          nutMesh.position.set(startX, startY, startZ);
+          dioramaGroup.add(nutMesh);
+          fountainNuts.push({
+            mesh: nutMesh,
+            sx: startX, sy: startY, sz: startZ,
+            tx, ty: getTerrainHeight(tx, tz) + 0.09, tz,
+            t: -k * 0.06,
+            dur: 0.92 + Math.random() * 0.32,
+            peak: 2.6 + Math.random() * 1.4
+          });
+        }
+        pendingFrenzyOnLand = true;
+        showToast('坚果箱喷出松果雨啦，准备抢果！🤯');
+      }
+
+      function startSquirrelNutFrenzy() {
+        sheepList.forEach(s => {
+          if (!s.isSquirrel || s.deleting || s.grabbed || s.herded) return;
+          if (s.pairInteraction) clearPairInteraction(s.pairInteraction);
+          s.frenzyTimer = 5.5;
+          s.forageTarget = null;
+          s.foragePickTimer = 0;
+          s.forageCooldown = 0;
+          s.state = 'Walk';
+          s.dropSquash = 0.7;
+        });
+      }
+
+      function updateFountainNuts(dt) {
+        let landedAny = false;
+        for (let i = fountainNuts.length - 1; i >= 0; i--) {
+          const fn = fountainNuts[i];
+          fn.t += dt;
+          if (fn.t < 0) continue;
+          const p = Math.min(1, fn.t / fn.dur);
+          fn.mesh.position.set(
+            fn.sx + (fn.tx - fn.sx) * p,
+            fn.sy + (fn.ty - fn.sy) * p + Math.sin(p * Math.PI) * fn.peak,
+            fn.sz + (fn.tz - fn.sz) * p
+          );
+          fn.mesh.rotation.x += dt * 8.0;
+          fn.mesh.rotation.z += dt * 6.0;
+          if (p >= 1) {
+            dioramaGroup.remove(fn.mesh);
+            if (forestNuts.length < 28 && getWorldConfig().flock.species === 'squirrel') {
+              worldEnvGroup.add(fn.mesh);
+              forestNuts.push({
+                mesh: fn.mesh,
+                x: fn.tx,
+                z: fn.tz,
+                groundY: fn.ty,
+                vy: 0,
+                falling: false,
+                scalePop: 1.0,
+                claimedBy: null,
+                phase: Math.random() * Math.PI * 2
+              });
+            }
+            fountainNuts.splice(i, 1);
+            landedAny = true;
+          }
+        }
+        if (landedAny && pendingFrenzyOnLand) {
+          pendingFrenzyOnLand = false;
+          startSquirrelNutFrenzy();
+        }
+      }
+
       function buildWorldEnvironment() {
         while (worldEnvGroup.children.length > 0) {
           worldEnvGroup.remove(worldEnvGroup.children[0]);
         }
         treeGroups.length = 0;
         petals.length = 0;
+        forestNuts.length = 0;
+        buryMounds.length = 0;
+        forestPineHitMeshes.length = 0;
+        forestGlowMushroomMats.length = 0;
+        while (fallingNuts.length > 0) {
+          const fn = fallingNuts.pop();
+          dioramaGroup.remove(fn.mesh);
+        }
+        while (fountainNuts.length > 0) {
+          const fn = fountainNuts.pop();
+          dioramaGroup.remove(fn.mesh);
+        }
 
-        const isDesert = currentWorld === 'desert';
-        const texPack = isDesert ? desertTex : meadowTex;
+        const terrainStyle = getWorldConfig().env.terrainStyle;
+        const isDesert = terrainStyle === 'desert';
+        const isForest = terrainStyle === 'forest';
+        const texPack = isForest ? forestTex : (isDesert ? desertTex : meadowTex);
         terrainMat.map = texPack.colorTex;
         terrainMat.alphaMap = texPack.alphaTex;
         terrainMat.needsUpdate = true;
 
         buildRiverReef();
-        worldEnvGroup.add(isDesert ? buildDesertSteppingStones() : buildWoodenBridge());
+        const bridgeStyle = getWorldConfig().env.bridgeStyle;
+        worldEnvGroup.add(
+          bridgeStyle === 'stepping_stones' ? buildDesertSteppingStones()
+            : (bridgeStyle === 'log' ? buildForestLogBridge() : buildWoodenBridge())
+        );
         worldEnvGroup.add(buildCottageAndSheepPen());
 
         if (isDesert) {
@@ -2687,6 +3575,100 @@
             if (idx % 2 === 0) createSandstoneCluster(b[0], b[1], b[2] * 0.78);
             else createDesertScrub(b[0], b[1], b[2] * 0.92);
           });
+        } else if (isForest) {
+          const pineTrunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4528, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.95 });
+          const pineMats = [
+            new THREE.MeshStandardMaterial({ color: 0x3b6e3a, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.94 }),
+            new THREE.MeshStandardMaterial({ color: 0x4d8242, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.93 }),
+            new THREE.MeshStandardMaterial({ color: 0xc97b36, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.92 }),
+            new THREE.MeshStandardMaterial({ color: 0xd9a13b, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.92 })
+          ];
+          const fernMat = new THREE.MeshStandardMaterial({ color: 0x568c44, bumpMap: feltBumpTex, bumpScale: 0.018, roughness: 0.94 });
+          const mushCapMat = new THREE.MeshStandardMaterial({ color: 0xc94a36, bumpMap: feltBumpTex, bumpScale: 0.018, roughness: 0.90 });
+          const mushStemMat = new THREE.MeshStandardMaterial({ color: 0xf7ecd7, roughness: 0.92 });
+
+          function createForestPine(tx, tz, sc, autumnTint) {
+            const g = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.11 * sc, 0.17 * sc, 0.85 * sc, 8), pineTrunkMat);
+            trunk.position.y = 0.42 * sc; trunk.castShadow = true; trunk.receiveShadow = true;
+            g.add(trunk);
+            const mat = autumnTint ? pineMats[2 + (Math.abs(Math.round(tx * 3)) % 2)] : pineMats[Math.abs(Math.round(tz * 3)) % 2];
+            [
+              { y: 1.05, r: 0.78, h: 1.05 },
+              { y: 1.62, r: 0.60, h: 0.92 },
+              { y: 2.12, r: 0.40, h: 0.78 }
+            ].forEach(tier => {
+              const cone = new THREE.Mesh(new THREE.ConeGeometry(tier.r * sc, tier.h * sc, 10), mat);
+              cone.position.y = tier.y * sc; cone.castShadow = true; cone.receiveShadow = true;
+              g.add(cone);
+            });
+            const pHit = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.75 * sc, 0.92 * sc, 2.4 * sc, 8),
+              new THREE.MeshBasicMaterial({ visible: false })
+            );
+            pHit.position.y = 1.25 * sc;
+            pHit.userData.pineTree = g;
+            g.add(pHit);
+            forestPineHitMeshes.push(pHit);
+            g.userData = { tx, tz, shakeTimer: 0 };
+            g.position.set(tx, getTerrainHeight(tx, tz) - 0.02, tz);
+            worldEnvGroup.add(g);
+            return g;
+          }
+
+          function createMushroomStump(mx, mz, sc) {
+            const g = new THREE.Group();
+            const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.24 * sc, 0.30 * sc, 0.28 * sc, 9), pineTrunkMat);
+            stump.position.y = 0.14 * sc; stump.castShadow = true; stump.receiveShadow = true;
+            g.add(stump);
+            [
+              { x: 0.06, z: 0.04, r: 0.18, h: 0.24 },
+              { x: -0.14, z: 0.12, r: 0.12, h: 0.17 },
+              { x: 0.18, z: -0.10, r: 0.10, h: 0.14 }
+            ].forEach(m => {
+              const stem = new THREE.Mesh(new THREE.CylinderGeometry(m.r * 0.32 * sc, m.r * 0.42 * sc, m.h * sc, 7), mushStemMat);
+              stem.position.set(m.x * sc, (0.26 + m.h * 0.45) * sc, m.z * sc);
+              stem.castShadow = true; g.add(stem);
+              const capMatInst = mushCapMat.clone();
+              forestGlowMushroomMats.push(capMatInst);
+              const cap = new THREE.Mesh(new THREE.SphereGeometry(m.r * sc, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), capMatInst);
+              cap.scale.set(1.0, 0.72, 1.0);
+              cap.position.set(m.x * sc, (0.26 + m.h * 0.85) * sc, m.z * sc);
+              cap.castShadow = true; g.add(cap);
+            });
+            g.position.set(mx, getTerrainHeight(mx, mz) - 0.02, mz);
+            worldEnvGroup.add(g);
+            return g;
+          }
+
+          function createForestFern(fx, fz, sc) {
+            const g = new THREE.Group();
+            for (let k = 0; k < 5; k++) {
+              const a = (k / 5) * Math.PI * 2;
+              const frond = new THREE.Mesh(new THREE.SphereGeometry(0.20 * sc, 8, 6), fernMat);
+              frond.scale.set(1.5, 0.42, 0.72);
+              frond.position.set(Math.cos(a) * 0.22 * sc, 0.12 * sc, Math.sin(a) * 0.22 * sc);
+              frond.rotation.y = -a;
+              frond.castShadow = true; g.add(frond);
+            }
+            g.position.set(fx, getTerrainHeight(fx, fz) - 0.01, fz);
+            worldEnvGroup.add(g);
+          }
+
+          treeSpecs.forEach((t, idx) => {
+            treeGroups.push(createForestPine(t.x, t.z, t.s * 1.05, idx % 3 === 1));
+            const ao = makeContactAO(0.95 * t.s, 0.95 * t.s, 0.70);
+            ao.position.set(t.x, getTerrainHeight(t.x, t.z) + 0.018, t.z);
+            worldEnvGroup.add(ao);
+          });
+          bushSpecs.forEach((b, idx) => {
+            if (idx % 2 === 0) createMushroomStump(b[0], b[1], b[2] * 0.95);
+            else createForestFern(b[0], b[1], b[2] * 1.05);
+            const ao = makeContactAO(0.55 * b[2], 0.55 * b[2], 0.52);
+            ao.position.set(b[0], getTerrainHeight(b[0], b[1]) + 0.016, b[1]);
+            worldEnvGroup.add(ao);
+          });
+          for (let n = 0; n < 20; n++) spawnForestGroundNut(false);
         } else {
           treeSpecs.forEach(t => {
             treeGroups.push(createStylizedTree(t.x, t.z, t.s, t.flower));
@@ -2746,11 +3728,16 @@
           worldEnvGroup.add(tuft);
         }
 
-        petalMat.color.setHex(isDesert ? 0xfde68a : 0xfbcfe8);
+        const forestLeafPalette = [0x82b34e, 0xd98b3c, 0xe5ba5c, 0xc85a32];
         const flowerTrees = treeSpecs.filter(t => t.flower);
         for (let i = 0; i < 16; i++) {
           const origin = flowerTrees[i % flowerTrees.length];
-          const m = new THREE.Mesh(petalGeo, petalMat);
+          const pMat = petalMat.clone();
+          const baseColorHex = isForest
+            ? forestLeafPalette[i % forestLeafPalette.length]
+            : (isDesert ? 0xfde68a : 0xfbcfe8);
+          pMat.color.setHex(baseColorHex);
+          const m = new THREE.Mesh(petalGeo, pMat);
           const p = {
             mesh: m,
             originX: origin.x,
@@ -2758,7 +3745,8 @@
             phase: pRand() * Math.PI * 2,
             speed: 0.32 + pRand() * 0.22,
             y: 0.4 + pRand() * 1.9,
-            driftR: 0.4 + pRand() * 0.8
+            driftR: 0.4 + pRand() * 0.8,
+            baseColorHex
           };
           m.position.set(isDesert ? (TERRAIN_MIN_X + pRand() * SLAB_W) : origin.x, p.y, isDesert ? ((pRand() - 0.5) * SLAB_D) : origin.z);
           worldEnvGroup.add(m);
@@ -3399,6 +4387,89 @@
       }
       const clapMarkTex = createClapTexture();
 
+      // Cute cartoon crying face sticker texture ('😭') for squirrel after its nut basket is shaken empty!
+      function createCryTexture() {
+        const c = document.createElement('canvas');
+        c.width = 224;
+        c.height = 224;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, 224, 224);
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.24)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 5;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(112, 114, 74, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.65)';
+        ctx.stroke();
+
+        // Streaming blue cartoon tear waterfalls
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.roundRect(66, 108, 22, 62, 11);
+        ctx.roundRect(136, 108, 22, 62, 11);
+        ctx.fill();
+
+        ctx.font = '800 108px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('😭', 112, 118);
+        ctx.restore();
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+      }
+      const cryMarkTex = createCryTexture();
+
+      // Helper to build crisp circular white-bordered emoji sticker textures for Forest species
+      function createStickerBadgeTexture(emoji, borderColor, accentColor) {
+        const c = document.createElement('canvas');
+        c.width = 224;
+        c.height = 224;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, 224, 224);
+        ctx.save();
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.22)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 5;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(112, 114, 72, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = borderColor;
+        ctx.stroke();
+        if (accentColor) {
+          ctx.fillStyle = accentColor;
+          ctx.beginPath();
+          ctx.arc(112, 114, 62, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.font = '800 102px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, 112, 120);
+        ctx.restore();
+        const tex = new THREE.CanvasTexture(c);
+        tex.encoding = THREE.sRGBEncoding;
+        return tex;
+      }
+      const cloudRestTex = createStickerBadgeTexture('☁️', 'rgba(147, 197, 253, 0.72)', 'rgba(239, 246, 255, 0.65)');
+      const zapMarkTex   = createStickerBadgeTexture('⚡', 'rgba(250, 204, 21, 0.85)', 'rgba(254, 249, 195, 0.65)');
+      const dizzyMarkTex = createStickerBadgeTexture('💫', 'rgba(245, 158, 11, 0.78)', 'rgba(254, 243, 199, 0.55)');
+      const alertMarkTex = createStickerBadgeTexture('❗', 'rgba(239, 68, 68, 0.78)', 'rgba(254, 226, 226, 0.55)');
+      const peekMarkTex  = createStickerBadgeTexture('👀', 'rgba(16, 185, 129, 0.72)', 'rgba(236, 253, 245, 0.55)');
+      const partyMarkTex = createStickerBadgeTexture('🎉', 'rgba(245, 158, 11, 0.82)', 'rgba(254, 243, 199, 0.58)');
+      const mindBlownMarkTex = createStickerBadgeTexture('🤯', 'rgba(249, 115, 22, 0.85)', 'rgba(255, 237, 213, 0.65)');
+
       // --- Expanding Water Ripples (river tap, sheep drinking, fish leaping, rain splashes) ---
       const waterRipples = [];
       const waterRippleGeo = new THREE.RingGeometry(0.14, 0.22, 24);
@@ -3653,6 +4724,15 @@
               });
               fx.sheep.headWearMesh = null;
             }
+            if (fx.sheep.isSquirrel) {
+              fx.sheep.basketEmpty = false;
+              fx.sheep.nutsCollected = 0;
+              if (fx.sheep.basketNutsGroup) {
+                fx.sheep.basketNutsGroup.visible = true;
+                fx.sheep.basketNutsGroup.children.forEach(ch => { ch.visible = true; });
+              }
+              showToast(getWorldConfig().shearedToast);
+            }
             fx.sheep.bareBodyMesh.visible = false;
             fx.sheep.woolGroup.visible = true;
             fx.sheep.hasSweater = false;
@@ -3682,7 +4762,7 @@
         { id: 'night',     label: '天气: 大漠星夜', bg: '#1b243b' }
       ];
       function getActiveWeatherModes() {
-        return currentWorld === 'desert' ? DESERT_WEATHER_MODES : MEADOW_WEATHER_MODES;
+        return getWorldConfig().weatherModes;
       }
       let weatherIdx = 0;
       let weatherMode = 'sunny';
@@ -3761,10 +4841,11 @@
         butterflies.forEach((bf, idx) => {
           if (bf.scareBoost > 0) bf.scareBoost = Math.max(0, bf.scareBoost - dt * 1.4);
           const a = elapsed * bf.speed + bf.phase;
-          const cx = currentWorld === 'desert' ? (getRiverCenterX(idx === 0 ? -2.2 : 3.0) + (idx === 0 ? -0.6 : 0.7)) : bf.centerX;
-          const cz = currentWorld === 'desert' ? (idx === 0 ? -2.2 : 3.0) : bf.centerZ;
-          const rx = currentWorld === 'desert' ? 1.5 : bf.radiusX;
-          const rz = currentWorld === 'desert' ? 1.8 : bf.radiusZ;
+          const isOasisZone = getWorldConfig().env.butterflyZone === 'oasis';
+          const cx = isOasisZone ? (getRiverCenterX(idx === 0 ? -2.2 : 3.0) + (idx === 0 ? -0.6 : 0.7)) : bf.centerX;
+          const cz = isOasisZone ? (idx === 0 ? -2.2 : 3.0) : bf.centerZ;
+          const rx = isOasisZone ? 1.5 : bf.radiusX;
+          const rz = isOasisZone ? 1.8 : bf.radiusZ;
           const nx = cx + Math.cos(a) * rx + Math.sin(a * 2.3) * 0.45;
           const nz = cz + Math.sin(a * 0.85) * rz;
           const ny = getTerrainHeight(nx, nz) + 0.75 + Math.sin(elapsed * 3.4 + bf.phase) * 0.25 + bf.scareBoost * 1.3;
@@ -3803,6 +4884,9 @@
       function startPairInteraction(sheepA, sheepB, type) {
         if (sheepA.pairInteraction) clearPairInteraction(sheepA.pairInteraction);
         if (sheepB.pairInteraction) clearPairInteraction(sheepB.pairInteraction);
+        if (sheepA.isSquirrel && sheepB.isSquirrel) {
+          type = 'tug';
+        }
 
         sheepA.angerTimer = 0;
         sheepB.angerTimer = 0;
@@ -3820,7 +4904,7 @@
         }
         const nx = dx / dist;
         const nz = dz / dist;
-        const idealDist = type === 'love' ? 1.12 : 1.24;
+        const idealDist = type === 'love' ? 1.12 : (type === 'tug' ? 1.18 : 1.24);
         const targetAx = sheepB.root.position.x - nx * idealDist;
         const targetAz = sheepB.root.position.z - nz * idealDist;
         if (!isPositionBlocked(targetAx, targetAz, 0)) {
@@ -3843,7 +4927,25 @@
           dustPuffs: []
         };
 
-        if (type === 'love') {
+        if (type === 'tug') {
+          inter.timer = 5.2;
+          inter.winner = Math.random() < 0.5 ? sheepA : sheepB;
+          const giantNut = createNutMesh(2.25);
+          fxGroup.add(giantNut);
+          inter.tugNut = giantNut;
+          const tMat = new THREE.SpriteMaterial({
+            map: alertMarkTex,
+            transparent: true,
+            opacity: 0,
+            depthTest: false,
+            depthWrite: false
+          });
+          const tSprite = new THREE.Sprite(tMat);
+          tSprite.renderOrder = 1000;
+          tSprite.scale.set(0.01, 0.01, 1);
+          fxGroup.add(tSprite);
+          inter.tugSprite = tSprite;
+        } else if (type === 'love') {
           const hMat = new THREE.SpriteMaterial({
             map: heartMarkTex,
             transparent: true,
@@ -3908,8 +5010,24 @@
       }
 
       function startHerdingEvent(sheep) {
-        if (herdingEvent || !goldenCat || !sheep || sheep.deleting || sheep.isCat || sheep.grabbed || sheep.hasSweater) return false;
+        if (herdingEvent || !goldenCat || !sheep || sheep.deleting || sheep.isCat || sheep.grabbed || sheep.hasSweater || sheep.basketEmpty) return false;
         if (sheep.pairInteraction) clearPairInteraction(sheep.pairInteraction);
+        if (sheep.forageTarget) { sheep.forageTarget.claimedBy = null; sheep.forageTarget = null; }
+
+        // Forest Easter Egg (~25%): brave squirrel puffs its tail & startles Red Panda into reflexive Threaten stance!
+        if (sheep.isSquirrel && goldenCat.isRedPanda && Math.random() < 0.25) {
+          herdingCooldown = 8.0;
+          goldenCat.state = 'Threaten';
+          goldenCat.threatenCycle = 0;
+          goldenCat.stateTimer = 3.8;
+          goldenCat.targetRotY = Math.atan2(sheep.root.position.x - goldenCat.root.position.x, sheep.root.position.z - goldenCat.root.position.z);
+          goldenCat.dropSquash = 0.85;
+          if (selectedSheep === goldenCat) syncToolbarActiveButton();
+          sheep.targetRotY = Math.atan2(sheep.root.position.x - goldenCat.root.position.x, sheep.root.position.z - goldenCat.root.position.z);
+          sheep.fleePenTimer = 1.4;
+          showToast('胖松鼠突然炸毛反吓了小熊猫一跳！');
+          return true;
+        }
 
         goldenCat.angerTimer = 0;
         goldenCat.boltingTimer = 0;
@@ -3945,8 +5063,9 @@
             z: HOUSE_Z - lx * sinH + lz * cosH
           };
         }
-        const doorLocalX = currentWorld === 'desert' ? 0.0 : -0.36;
-        const doorstep = houseLocalToWorld(doorLocalX, currentWorld === 'desert' ? 1.55 : 1.35);
+        const envCfg = getWorldConfig().env;
+        const doorLocalX = envCfg.doorLocalX;
+        const doorstep = houseLocalToWorld(doorLocalX, envCfg.doorLocalZ);
         const insideDoor = houseLocalToWorld(doorLocalX, 0.45);
 
         const fxGroup = new THREE.Group();
@@ -4068,7 +5187,7 @@
               sr.sheep.targetRotY = (Math.random() - 0.5) * 0.9;
               sr.stage = 'close';
               sr.timer = 1.0;
-              showToast(currentWorld === 'desert' ? '秃毛小羊驼穿着中东白袍比什特、戴着头巾溜出帐篷啦！' : '剃完毛的小羊穿着小毛衣溜出来啦！');
+              showToast(getWorldConfig().shearedToast);
             }
           } else if (sr.stage === 'close') {
             if (cottageDoorPivot) cottageDoorPivot.rotation.y += (0 - cottageDoorPivot.rotation.y) * Math.min(1, dt * 7);
@@ -4147,10 +5266,96 @@
 
           if (ev.stage === 'shiver') {
             sh.targetRotY = Math.atan2(cat.root.position.x - sh.root.position.x, cat.root.position.z - sh.root.position.z);
-            if (ev.timer >= 2.2) {
-              ev.stage = 'shear';
+            if (ev.timer >= (sh.isSquirrel ? 1.2 : 2.2)) {
+              if (sh.isSquirrel) {
+                ev.stage = 'shake_nuts';
+                ev.timer = 0;
+                ev.nutDropTimer = 0.18;
+              } else {
+                ev.stage = 'shear';
+                ev.timer = 0;
+                spawnShearingMist(ev);
+              }
+            }
+          } else if (ev.stage === 'shake_nuts') {
+            // Lift squirrel right over the wooden nut crate, flip upside-down, and shake acorns out into the box!
+            const crateX = PEN_X - 1.15;
+            const crateZ = PEN_Z + 0.35;
+            sh.root.position.x += (crateX - sh.root.position.x) * Math.min(1, dt * 8);
+            sh.root.position.z += (crateZ - sh.root.position.z) * Math.min(1, dt * 8);
+            ev.nutDropTimer -= dt;
+            if (ev.nutDropTimer <= 0 && ev.timer < 2.25) {
+              ev.nutDropTimer = 0.22;
+              const nut = createNutMesh(1.18);
+              const gy = getTerrainHeight(crateX, crateZ);
+              nut.position.set(
+                crateX + (Math.random() - 0.5) * 0.26,
+                gy + 1.15 + Math.random() * 0.15,
+                crateZ + (Math.random() - 0.5) * 0.22
+              );
+              dioramaGroup.add(nut);
+              fallingNuts.push({
+                mesh: nut,
+                vx: (Math.random() - 0.5) * 0.55,
+                vy: -0.35 - Math.random() * 0.4,
+                vz: (Math.random() - 0.5) * 0.55,
+                targetY: gy + 0.12 + Math.min(0.18, forestCrateNutCount * 0.012),
+                crateX,
+                crateZ,
+                life: 0
+              });
+            }
+            if (ev.timer > 1.75 && !sh.basketEmpty) {
+              sh.basketEmpty = true;
+              if (sh.basketNutsGroup) sh.basketNutsGroup.visible = false;
+            }
+            if (ev.timer >= 2.75) {
+              sh.basketEmpty = true;
+              if (sh.basketNutsGroup) sh.basketNutsGroup.visible = false;
+              sh.dropSquash = 1.0;
+              // Step slightly in front of the crate upon landing so squirrel doesn't stand inside the box
+              sh.root.position.x = crateX + 0.15;
+              sh.root.position.z = crateZ + 0.72;
+              ev.stage = 'cry';
               ev.timer = 0;
-              spawnShearingMist(ev);
+              showToast('小熊猫把松鼠倒拎起来，背篓里的坚果全抖进箱子啦！');
+            }
+          } else if (ev.stage === 'cry') {
+            // Landed with visibly empty basket -> crying animation!
+            sh.targetRotY = Math.atan2(camera.position.x - sh.root.position.x, camera.position.z - sh.root.position.z);
+            if (ev.timer >= 3.3) {
+              ev.stage = 'exit_pen';
+              ev.timer = 0;
+              ev.exitIdx = 0;
+            }
+          } else if (ev.stage === 'exit_pen') {
+            const exitWps = [
+              { x: PEN_X, z: PEN_Z + PEN_D * 0.5 + 0.55 },
+              { x: PEN_X - 0.6, z: PEN_Z + PEN_D * 0.5 + 2.55 }
+            ];
+            const tgt = exitWps[ev.exitIdx];
+            const dx = tgt.x - sh.root.position.x;
+            const dz = tgt.z - sh.root.position.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.24) {
+              sh.root.position.x += (dx / dist) * 1.75 * dt;
+              sh.root.position.z += (dz / dist) * 1.75 * dt;
+              sh.targetRotY = Math.atan2(dx, dz);
+            } else if (ev.exitIdx < exitWps.length - 1) {
+              ev.exitIdx++;
+            } else {
+              sh.herded = false;
+              sh.fleePenCooldown = 6.0;
+              sh.refillTimer = 65.0 + Math.random() * 15.0;
+              sh.nutsCollected = 0;
+              sh.state = 'Walk';
+              clearHerdingEvent();
+              if (goldenCat) {
+                goldenCat.state = 'Walk';
+                goldenCat.stateTimer = 7.5 + Math.random() * 3.0;
+                goldenCat.targetRotY = -2.25 + (Math.random() - 0.5) * 0.75;
+                if (selectedSheep === goldenCat) syncToolbarActiveButton();
+              }
             }
           } else if (ev.stage === 'shear') {
             const p = ev.timer / 2.8;
@@ -4285,7 +5490,58 @@
           const fadeOut = Math.min(1, inter.timer * 2.2);
           const vis = fadeIn * fadeOut;
 
-          if (inter.type === 'love' && inter.heartSprite) {
+          if (inter.type === 'tug' && inter.tugNut) {
+            const dx = inter.b.root.position.x - inter.a.root.position.x;
+            const dz = inter.b.root.position.z - inter.a.root.position.z;
+            const dLen = Math.hypot(dx, dz) || 1;
+            const nx = dx / dLen, nz = dz / dLen;
+            if (inter.elapsed < 3.5) {
+              const sway = Math.sin(inter.elapsed * 9.5) * 0.16;
+              inter.tugNut.position.set(
+                midX + nx * sway,
+                midY + 0.36 + Math.abs(Math.sin(inter.elapsed * 9.5)) * 0.07,
+                midZ + nz * sway
+              );
+              inter.tugNut.rotation.z = sway * 1.4;
+              inter.tugNut.rotation.y += dt * 2.5;
+              if (inter.tugSprite) {
+                const sz = 0.80 * vis * (1 + Math.sin(inter.elapsed * 12) * 0.10);
+                inter.tugSprite.scale.set(sz, sz, 1);
+                inter.tugSprite.position.set(midX, midY + 1.48, midZ);
+                inter.tugSprite.material.opacity = vis;
+              }
+            } else {
+              // Winner hoists the giant nut triumphantly!
+              const w = inter.winner;
+              inter.tugNut.position.set(
+                w.root.position.x,
+                w.root.position.y + 0.96 + Math.abs(Math.sin(inter.elapsed * 10)) * 0.16,
+                w.root.position.z
+              );
+              inter.tugNut.rotation.y += dt * 5.0;
+              if (inter.tugSprite) {
+                if (inter.tugSprite.material.map !== partyMarkTex) {
+                  inter.tugSprite.material.map = partyMarkTex;
+                  inter.tugSprite.material.needsUpdate = true;
+                  if (w.isSquirrel && w.basketEmpty) {
+                    w.nutsCollected = (w.nutsCollected || 0) + 1;
+                    if (w.basketNutsGroup) {
+                      w.basketNutsGroup.visible = true;
+                      w.basketNutsGroup.children.forEach((ch, ci) => { ch.visible = ci < w.nutsCollected; });
+                    }
+                    if (w.nutsCollected >= 6 && w.rebirthTimer <= 0) {
+                      w.rebirthTimer = 1.85;
+                      spawnGoldenRebirthFX(w);
+                    }
+                  }
+                }
+                const sz = 0.86 * vis;
+                inter.tugSprite.scale.set(sz, sz, 1);
+                inter.tugSprite.position.set(w.root.position.x, w.root.position.y + 1.65, w.root.position.z);
+                inter.tugSprite.material.opacity = vis;
+              }
+            }
+          } else if (inter.type === 'love' && inter.heartSprite) {
             const pulse = 1 + Math.sin(inter.elapsed * 6.5) * 0.12;
             const sz = 0.92 * vis * pulse;
             inter.heartSprite.scale.set(sz, sz, 1);
@@ -4384,19 +5640,35 @@
         bareBodyMesh.visible = false;
         bodyRig.add(bareBodyMesh);
 
-        const isAlpaca = currentWorld === 'desert';
+        const flockSpecies = getWorldConfig().flock.species;
+        const isAlpaca = flockSpecies === 'alpaca';
+        const isSquirrel = flockSpecies === 'squirrel';
         const alpacaCoats = [
           new THREE.MeshStandardMaterial({ color: 0xfbf6ea, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.94 }),
           new THREE.MeshStandardMaterial({ color: 0xd49a62, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.94 }),
           new THREE.MeshStandardMaterial({ color: 0x6f3c1e, bumpMap: feltBumpTex, bumpScale: 0.022, roughness: 0.94 })
         ];
-        const coatMat = isAlpaca ? alpacaCoats[(nextSheepId) % alpacaCoats.length] : woolMat;
+        const squirrelCoats = [
+          new THREE.MeshStandardMaterial({ color: 0xb85e2c, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.93 }),
+          new THREE.MeshStandardMaterial({ color: 0xd17e3c, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.93 }),
+          new THREE.MeshStandardMaterial({ color: 0x8f5330, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.93 })
+        ];
+        const squirrelBellyMat = new THREE.MeshStandardMaterial({ color: 0xf8efe0, bumpMap: feltBumpTex, bumpScale: 0.014, roughness: 0.94 });
+        const coatMat = isSquirrel
+          ? squirrelCoats[(nextSheepId) % squirrelCoats.length]
+          : (isAlpaca ? alpacaCoats[(nextSheepId) % alpacaCoats.length] : woolMat);
 
         const woolGroup = new THREE.Group();
-        woolGroup.position.y = 0.56;
+        woolGroup.position.y = isSquirrel ? 0.24 : 0.56;
         bodyRig.add(woolGroup);
 
-        const bodyPuffs = isAlpaca ? [
+        if (isSquirrel) {
+          bodyRig.scale.setScalar(1.06);
+          bareBodyMesh.position.y = -0.22;
+          bareBodyMesh.scale.set(0.82, 0.80, 0.84);
+        }
+
+        const bodyPuffs = isSquirrel ? [] : isAlpaca ? [
           [0, 0.02, 0, 0.33], [0, 0.04, 0.20, 0.27], [0, 0.03, -0.24, 0.28],
           [0.16, 0.02, 0.02, 0.22], [-0.16, 0.02, 0.02, 0.22],
           [0, 0.23, 0.28, 0.195], [0, 0.44, 0.30, 0.175], [0, 0.65, 0.31, 0.160],
@@ -4409,7 +5681,7 @@
         bodyPuffs.forEach(([px, py, pz, r], idx) => {
           const m = new THREE.Mesh(
             new THREE.SphereGeometry(r, 20, 16),
-            isAlpaca ? coatMat : (idx % 3 === 1 ? woolWarmMat : woolMat)
+            (isAlpaca || isSquirrel) ? coatMat : (idx % 3 === 1 ? woolWarmMat : woolMat)
           );
           m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true;
           woolGroup.add(m);
@@ -4420,6 +5692,122 @@
           tallBareNeck.position.set(0, 0.94, 0.31); tallBareNeck.rotation.x = 0.05; tallBareNeck.castShadow = true;
           bareBodyMesh.add(tallBareNeck);
         }
+        let squirrelTailPivot = null;
+        let squirrelAcorn = null;
+        if (isSquirrel) {
+          const sqTailHighlightMat = new THREE.MeshStandardMaterial({
+            color: 0xe6a96b, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.93
+          });
+
+          // Smooth pear-shaped matte-clay Eurasian red squirrel torso (low haunched posture, NOT a sheep!)
+          const sqRump = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 14), coatMat);
+          sqRump.scale.set(0.95, 0.96, 1.18);
+          sqRump.position.set(0, 0.07, -0.06);
+          sqRump.castShadow = true; sqRump.receiveShadow = true;
+          woolGroup.add(sqRump);
+
+          const sqChest = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), coatMat);
+          sqChest.scale.set(0.88, 0.96, 0.98);
+          sqChest.position.set(0, 0.16, 0.12);
+          sqChest.castShadow = true; sqChest.receiveShadow = true;
+          woolGroup.add(sqChest);
+
+          // Crisp cream-white squirrel belly & chest bib (authentic Sciurus vulgaris underside)
+          const sqBelly = new THREE.Mesh(new THREE.SphereGeometry(0.185, 16, 12), squirrelBellyMat);
+          sqBelly.scale.set(0.74, 0.86, 1.06);
+          sqBelly.position.set(0, 0.07, 0.09);
+          woolGroup.add(sqBelly);
+
+          // Rounded muscular squirrel hind haunches
+          [-1, 1].forEach(side => {
+            const haunch = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), coatMat);
+            haunch.scale.set(0.70, 1.02, 1.12);
+            haunch.position.set(side * 0.165, 0.02, -0.10);
+            haunch.castShadow = true;
+            woolGroup.add(haunch);
+          });
+
+          // Realistically proportioned sleek plush squirrel tail (graceful S-curve, ~0.75x body length)
+          squirrelTailPivot = new THREE.Group();
+          squirrelTailPivot.position.set(0, 0.20, -0.22);
+          [
+            [0, 0.04, -0.07, 0.070, 0.78, 0.96, 1.12, coatMat],
+            [0, 0.15, -0.15, 0.092, 0.74, 1.06, 1.10, coatMat],
+            [0, 0.29, -0.19, 0.108, 0.72, 1.08, 1.08, coatMat],
+            [0, 0.43, -0.15, 0.102, 0.72, 1.02, 1.08, coatMat],
+            [0, 0.52, -0.04, 0.078, 0.70, 0.94, 1.12, sqTailHighlightMat]
+          ].forEach(([tx, ty, tz, tr, sx, sy, sz, mat]) => {
+            const tp = new THREE.Mesh(new THREE.SphereGeometry(tr, 14, 10), mat);
+            tp.scale.set(sx, sy, sz);
+            tp.position.set(tx, ty, tz);
+            tp.castShadow = true;
+            squirrelTailPivot.add(tp);
+          });
+          bodyRig.add(squirrelTailPivot);
+
+          // Cozy woven wicker nut-basket worn on every squirrel's back (visibly FULL by default, visibly EMPTY when shaken!)
+          const basketMat = new THREE.MeshStandardMaterial({ color: 0xc99658, bumpMap: feltBumpTex, bumpScale: 0.026, roughness: 0.94 });
+          const basketRimMat = new THREE.MeshStandardMaterial({ color: 0x9c6835, bumpMap: feltBumpTex, bumpScale: 0.020, roughness: 0.93 });
+          const basketHollowMat = new THREE.MeshStandardMaterial({ color: 0x331f10, roughness: 0.98 });
+          const strapMat = new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 0.92 });
+
+          var squirrelBasketGroup = new THREE.Group();
+          const bShell = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.120, 0.23, 14), basketMat);
+          bShell.castShadow = true; bShell.receiveShadow = true;
+          squirrelBasketGroup.add(bShell);
+          const bRim = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.024, 8, 18), basketRimMat);
+          bRim.rotation.x = Math.PI / 2; bRim.position.y = 0.115;
+          squirrelBasketGroup.add(bRim);
+          const bBand = new THREE.Mesh(new THREE.TorusGeometry(0.144, 0.014, 6, 16), basketRimMat);
+          bBand.rotation.x = Math.PI / 2; bBand.position.y = 0.0;
+          squirrelBasketGroup.add(bBand);
+          const bHollow = new THREE.Mesh(new THREE.CircleGeometry(0.145, 14), basketHollowMat);
+          bHollow.rotation.x = -Math.PI / 2; bHollow.position.y = 0.112;
+          squirrelBasketGroup.add(bHollow);
+          // Shoulder straps hugging the squirrel's torso
+          [-0.095, 0.095].forEach(sx => {
+            const st = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.16, 0.14), strapMat);
+            st.position.set(sx, -0.04, 0.12);
+            st.rotation.x = 0.45;
+            squirrelBasketGroup.add(st);
+          });
+
+          // Overflowing heap of 7 plump acorns inside the basket (clearly visible from top-down camera!)
+          var basketNutsGroup = new THREE.Group();
+          [
+            [ 0.00, 0.175,  0.00, 1.05, 0.1, 0.4],
+            [-0.08, 0.145,  0.06, 0.96, 0.3, 1.2],
+            [ 0.08, 0.145,  0.06, 0.96, -0.2, 2.0],
+            [-0.08, 0.140, -0.06, 0.95, 0.2, 2.8],
+            [ 0.08, 0.140, -0.06, 0.95, -0.3, 0.9],
+            [ 0.00, 0.145,  0.10, 0.90, 0.4, 1.7],
+            [ 0.00, 0.145, -0.10, 0.90, -0.4, 3.1]
+          ].forEach(([nx, ny, nz, nsc, rx, ry]) => {
+            const nut = createNutMesh(nsc);
+            nut.position.set(nx, ny, nz);
+            nut.rotation.set(rx, ry, 0.15);
+            basketNutsGroup.add(nut);
+          });
+          squirrelBasketGroup.add(basketNutsGroup);
+          squirrelBasketGroup.position.set(0, 0.43, -0.05);
+          squirrelBasketGroup.rotation.x = -0.22;
+          bodyRig.add(squirrelBasketGroup);
+
+          // Cute miniature acorn held between front paws during Nibble state
+          squirrelAcorn = new THREE.Group();
+          const nutBody = new THREE.Mesh(new THREE.SphereGeometry(0.068, 10, 8), new THREE.MeshStandardMaterial({ color: 0xb67a3e, roughness: 0.88 }));
+          nutBody.scale.set(0.88, 1.14, 0.88);
+          squirrelAcorn.add(nutBody);
+          const nutCap = new THREE.Mesh(new THREE.SphereGeometry(0.072, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.52), new THREE.MeshStandardMaterial({ color: 0x5c3922, roughness: 0.94 }));
+          nutCap.position.y = 0.02;
+          squirrelAcorn.add(nutCap);
+          const nutStem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.04, 6), new THREE.MeshStandardMaterial({ color: 0x4a2c18, roughness: 0.94 }));
+          nutStem.position.y = 0.085;
+          squirrelAcorn.add(nutStem);
+          squirrelAcorn.position.set(0, 0.34, 0.33);
+          squirrelAcorn.visible = false;
+          bodyRig.add(squirrelAcorn);
+        }
 
         let sweaterMesh = null;
         let headWearMesh = null;
@@ -4428,7 +5816,12 @@
           bareBodyMesh.visible = true;
           sweaterMesh = new THREE.Group();
 
-          if (isAlpaca) {
+          if (isSquirrel) {
+            // Squirrels keep their normal body; withSweater restores an empty-basket state
+            woolGroup.visible = true;
+            bareBodyMesh.visible = false;
+            if (basketNutsGroup) basketNutsGroup.visible = false;
+          } else if (isAlpaca) {
             const bishtPalettes = [
               { cloak: 0x201e1c, zari: 0xeab308, shemagh: 'red' },
               { cloak: 0x4b3322, zari: 0xf59e0b, shemagh: 'white' },
@@ -4535,66 +5928,183 @@
         root.add(sheepAO);
 
         const headPivot = new THREE.Group();
-        headPivot.position.set(0, isAlpaca ? 1.30 : 0.64, isAlpaca ? 0.32 : 0.36);
+        headPivot.position.set(0, isAlpaca ? 1.30 : (isSquirrel ? 0.50 : 0.64), isAlpaca ? 0.32 : (isSquirrel ? 0.20 : 0.36));
         bodyRig.add(headPivot);
         if (headWearMesh) headPivot.add(headWearMesh);
 
-        const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), isAlpaca ? coatMat : faceMat);
-        headMesh.scale.set(0.86, 0.90, isAlpaca ? 1.32 : 1.25);
-        headMesh.position.set(0, 0.02, 0.14);
-        headMesh.castShadow = true;
-        headPivot.add(headMesh);
+        if (isSquirrel) {
+          // Authentic matte-clay Eurasian red squirrel head: rounded skull, tapered muzzle, dark nose, white eye-rings, upright tufted ears!
+          const sqSkull = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 14), coatMat);
+          sqSkull.scale.set(0.96, 0.92, 1.08);
+          sqSkull.position.set(0, 0.03, 0.06);
+          sqSkull.castShadow = true;
+          headPivot.add(sqSkull);
 
-        const crown = new THREE.Mesh(new THREE.SphereGeometry(isAlpaca ? 0.18 : 0.13, 12, 10), isAlpaca ? coatMat : woolMat);
-        crown.position.set(0, isAlpaca ? 0.17 : 0.14, isAlpaca ? 0.06 : 0.07);
-        crown.castShadow = true;
-        headPivot.add(crown);
+          const sqMuzzle = new THREE.Mesh(new THREE.SphereGeometry(0.088, 12, 10), squirrelBellyMat);
+          sqMuzzle.scale.set(0.92, 0.78, 1.15);
+          sqMuzzle.position.set(0, -0.025, 0.20);
+          headPivot.add(sqMuzzle);
 
-        [-1, 1].forEach(side => {
-          if (isAlpaca) {
-            const ear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 6), coatMat);
-            ear.position.set(side * 0.11, 0.20, 0.02);
-            ear.rotation.z = side * -0.22;
-            headPivot.add(ear);
-          } else {
-            const ear = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), faceMat);
-            ear.scale.set(1.5, 0.55, 0.7);
-            ear.position.set(side * 0.17, 0.05, 0.08);
-            ear.rotation.z = side * -0.45;
-            headPivot.add(ear);
-          }
-        });
+          const sqNose = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), eyeMat);
+          sqNose.scale.set(1.15, 0.85, 0.85);
+          sqNose.position.set(0, -0.008, 0.285);
+          headPivot.add(sqNose);
 
-        // Subtle eyes + tiny rosy blush cheeks for miniature handcraft charm
-        [-1, 1].forEach(side => {
-          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), eyeMat);
-          eye.position.set(side * 0.09, 0.055, 0.29);
-          headPivot.add(eye);
+          // Tiny cute front buck-teeth peeking under muzzle
+          const sqTooth = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.028, 0.014), squirrelBellyMat);
+          sqTooth.position.set(0, -0.056, 0.258);
+          headPivot.add(sqTooth);
 
-          const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), cheekMat);
-          cheek.scale.set(1.2, 0.7, 0.5);
-          cheek.position.set(side * 0.12, -0.005, 0.25);
-          headPivot.add(cheek);
-        });
+          // Chubby inflatable cheek pouches (visibly puff up like ping-pong balls during Nibble!)
+          var squirrelCheeks = [];
+          [-1, 1].forEach(side => {
+            const ch = new THREE.Mesh(new THREE.SphereGeometry(0.088, 12, 10), squirrelBellyMat);
+            ch.scale.set(1.0, 0.86, 0.94);
+            ch.position.set(side * 0.11, -0.042, 0.135);
+            headPivot.add(ch);
+            squirrelCheeks.push(ch);
+          });
 
-        // 4 articulated legs (hip joints anchored cleanly inside both fluffy wool and slim sheared body!)
+          // Iconic upright triangular red-squirrel ears WITH feathery ear tufts!
+          const sqEarInnerMat = new THREE.MeshStandardMaterial({ color: 0xf0b29e, roughness: 0.90 });
+          [-1, 1].forEach(side => {
+            const earGrp = new THREE.Group();
+            earGrp.position.set(side * 0.105, 0.175, 0.01);
+            earGrp.rotation.z = side * -0.18;
+            earGrp.rotation.x = 0.08;
+            const earOuter = new THREE.Mesh(new THREE.ConeGeometry(0.056, 0.145, 8), coatMat);
+            earOuter.scale.set(1.0, 1.0, 0.52);
+            earOuter.position.y = 0.055;
+            earOuter.castShadow = true;
+            earGrp.add(earOuter);
+            const earIn = new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.095, 6), sqEarInnerMat);
+            earIn.scale.set(1.0, 1.0, 0.40);
+            earIn.position.set(0, 0.048, 0.018);
+            earGrp.add(earIn);
+            // Signature Eurasian red squirrel ear tuft!
+            const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.078, 6), coatMat);
+            tuft.position.set(0, 0.138, -0.005);
+            tuft.rotation.z = side * -0.12;
+            earGrp.add(tuft);
+            headPivot.add(earGrp);
+          });
+
+          // Large glossy dark eyes + happy squint eyelids for cheek-stuffing expression!
+          var sqOpenEyes = [];
+          var sqHappyLids = [];
+          [-1, 1].forEach(side => {
+            const ring = new THREE.Mesh(new THREE.SphereGeometry(0.044, 10, 10), squirrelBellyMat);
+            ring.scale.set(0.65, 1.0, 1.0);
+            ring.position.set(side * 0.122, 0.052, 0.165);
+            headPivot.add(ring);
+            const eyeGrp = new THREE.Group();
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.033, 10, 10), eyeMat);
+            eye.position.set(side * 0.132, 0.054, 0.176);
+            eyeGrp.add(eye);
+            const glint = new THREE.Mesh(new THREE.SphereGeometry(0.010, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            glint.position.set(side * 0.142, 0.066, 0.198);
+            eyeGrp.add(glint);
+            headPivot.add(eyeGrp);
+            sqOpenEyes.push(eyeGrp);
+
+            const lid = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.014, 0.056), eyeMat);
+            lid.position.set(side * 0.144, 0.056, 0.178);
+            lid.rotation.x = side * 0.18;
+            lid.visible = false;
+            headPivot.add(lid);
+            sqHappyLids.push(lid);
+          });
+        } else {
+          const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), isAlpaca ? coatMat : faceMat);
+          headMesh.scale.set(0.86, 0.90, isAlpaca ? 1.32 : 1.25);
+          headMesh.position.set(0, 0.02, 0.14);
+          headMesh.castShadow = true;
+          headPivot.add(headMesh);
+
+          const crown = new THREE.Mesh(new THREE.SphereGeometry(isAlpaca ? 0.18 : 0.13, 12, 10), isAlpaca ? coatMat : woolMat);
+          crown.position.set(0, isAlpaca ? 0.17 : 0.14, isAlpaca ? 0.06 : 0.07);
+          crown.castShadow = true;
+          headPivot.add(crown);
+
+          [-1, 1].forEach(side => {
+            if (isAlpaca) {
+              const ear = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 6), coatMat);
+              ear.position.set(side * 0.11, 0.20, 0.02);
+              ear.rotation.z = side * -0.22;
+              headPivot.add(ear);
+            } else {
+              const ear = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), faceMat);
+              ear.scale.set(1.5, 0.55, 0.7);
+              ear.position.set(side * 0.17, 0.05, 0.08);
+              ear.rotation.z = side * -0.45;
+              headPivot.add(ear);
+            }
+          });
+
+          // Subtle eyes + tiny rosy blush cheeks for miniature handcraft charm
+          [-1, 1].forEach(side => {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), eyeMat);
+            eye.position.set(side * 0.09, 0.055, 0.29);
+            headPivot.add(eye);
+
+            const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), cheekMat);
+            cheek.scale.set(1.2, 0.7, 0.5);
+            cheek.position.set(side * 0.12, -0.005, 0.25);
+            headPivot.add(cheek);
+          });
+        }
+
+        // 4 articulated limbs (short nimble front paws + haunched hind feet for squirrel; classic legs for sheep/alpaca)
         const legs = [];
-        const legCoords = [
-          [-0.115, 0.44, 0.17],
-          [ 0.115, 0.44, 0.17],
-          [-0.115, 0.44, -0.18],
-          [ 0.115, 0.44, -0.18]
-        ];
-        legCoords.forEach(([lx, ly, lz]) => {
-          const legPivot = new THREE.Group();
-          legPivot.position.set(lx, ly, lz);
-          const legMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.44, 8), faceMat);
-          legMesh.position.y = -0.22;
-          legMesh.castShadow = true;
-          legPivot.add(legMesh);
-          bodyRig.add(legPivot);
-          legs.push(legPivot);
-        });
+        if (isSquirrel) {
+          const sqPawMat = new THREE.MeshStandardMaterial({ color: 0xe3b896, roughness: 0.90 });
+          const sqLegSpecs = [
+            { x: -0.105, y: 0.30, z:  0.19, front: true },
+            { x:  0.105, y: 0.30, z:  0.19, front: true },
+            { x: -0.135, y: 0.18, z: -0.06, front: false },
+            { x:  0.135, y: 0.18, z: -0.06, front: false }
+          ];
+          sqLegSpecs.forEach(sp => {
+            const legPivot = new THREE.Group();
+            legPivot.position.set(sp.x, sp.y, sp.z);
+            if (sp.front) {
+              const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.028, 0.18, 8), coatMat);
+              arm.position.y = -0.09; arm.castShadow = true;
+              legPivot.add(arm);
+              const paw = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 8), sqPawMat);
+              paw.scale.set(0.95, 0.70, 1.25); paw.position.set(0, -0.18, 0.02);
+              legPivot.add(paw);
+            } else {
+              const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.034, 0.14, 8), coatMat);
+              shin.position.y = -0.07; shin.castShadow = true;
+              legPivot.add(shin);
+              const hindFoot = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), sqPawMat);
+              hindFoot.scale.set(0.85, 0.50, 1.72);
+              hindFoot.position.set(0, -0.145, 0.055);
+              hindFoot.castShadow = true;
+              legPivot.add(hindFoot);
+            }
+            bodyRig.add(legPivot);
+            legs.push(legPivot);
+          });
+        } else {
+          const legCoords = [
+            [-0.115, 0.44, 0.17],
+            [ 0.115, 0.44, 0.17],
+            [-0.115, 0.44, -0.18],
+            [ 0.115, 0.44, -0.18]
+          ];
+          legCoords.forEach(([lx, ly, lz]) => {
+            const legPivot = new THREE.Group();
+            legPivot.position.set(lx, ly, lz);
+            const legMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.44, 8), faceMat);
+            legMesh.position.y = -0.22;
+            legMesh.castShadow = true;
+            legPivot.add(legMesh);
+            bodyRig.add(legPivot);
+            legs.push(legPivot);
+          });
+        }
 
         // Cartoon '?' floating sprite above head (always rendered cleanly on top)
         const qSpriteMat = new THREE.SpriteMaterial({
@@ -4641,9 +6151,9 @@
         sweatSprite.visible = false;
         bodyRig.add(sweatSprite);
 
-        // Cartoon clapping hands sprite ('👏') shown when celebrating a friend's golden wool rebirth!
+        // Cartoon celebration sprite ('🎉' for Forest Squirrels, '👏' for Meadow/Desert)
         const clapSpriteMat = new THREE.SpriteMaterial({
-          map: clapMarkTex,
+          map: isSquirrel ? partyMarkTex : clapMarkTex,
           transparent: true,
           opacity: 0,
           depthTest: false,
@@ -4655,6 +6165,36 @@
         clapSprite.renderOrder = 999;
         clapSprite.visible = false;
         bodyRig.add(clapSprite);
+
+        // Cartoon crying sticker sprite ('😭') shown when squirrel's nut basket gets shaken empty!
+        const crySpriteMat = new THREE.SpriteMaterial({
+          map: cryMarkTex,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false
+        });
+        const crySprite = new THREE.Sprite(crySpriteMat);
+        crySprite.position.set(0.0, 1.52, 0.22);
+        crySprite.scale.set(0.01, 0.01, 1);
+        crySprite.renderOrder = 999;
+        crySprite.visible = false;
+        bodyRig.add(crySprite);
+
+        // Forest squirrel dedicated mood sticker sprite ('❗' alert / '👀' sneaky peek)
+        const sqMoodMat = new THREE.SpriteMaterial({
+          map: alertMarkTex,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false
+        });
+        const sqMoodSprite = new THREE.Sprite(sqMoodMat);
+        sqMoodSprite.position.set(0.0, 1.48, 0.24);
+        sqMoodSprite.scale.set(0.01, 0.01, 1);
+        sqMoodSprite.renderOrder = 999;
+        sqMoodSprite.visible = false;
+        bodyRig.add(sqMoodSprite);
 
         // Invisible generous raycast hit proxy for effortless clicking
         const hitMesh = new THREE.Mesh(
@@ -4668,12 +6208,34 @@
         const sheep = {
           id: nextSheepId++,
           isAlpaca,
+          isSquirrel,
+          squirrelTailPivot,
+          squirrelAcorn,
+          squirrelCheeks: isSquirrel ? squirrelCheeks : null,
+          sqOpenEyes: isSquirrel ? sqOpenEyes : null,
+          sqHappyLids: isSquirrel ? sqHappyLids : null,
+          sqMoodSprite,
+          sqMoodPop: 0,
+          dartPhase: 'run',
+          dartTimer: 0.7 + Math.random() * 0.6,
+          buryCycle: 0,
+          squirrelBasketGroup: isSquirrel ? squirrelBasketGroup : null,
+          basketNutsGroup: isSquirrel ? basketNutsGroup : null,
+          basketEmpty: Boolean(isSquirrel && withSweater),
+          nutsCollected: 0,
+          refillTimer: (isSquirrel && withSweater) ? 20.0 : 0,
+          forageTarget: null,
+          foragePickTimer: 0,
+          forageCooldown: 2.0 + Math.random() * 4.0,
+          frenzyTimer: 0,
+          crySprite,
+          cryPop: 0,
           root,
           bodyRig,
           woolGroup,
           bareBodyMesh,
           sheared: false,
-          hasSweater: Boolean(withSweater),
+          hasSweater: Boolean(withSweater && !isSquirrel),
           sweaterMesh,
           headWearMesh,
           wadeAction: null,
@@ -4781,9 +6343,12 @@
         hoveredSheep = null;
         initialFlockSpecs.forEach((spec, idx) => {
           let initSt = spec.s;
-          if (currentWorld === 'desert') {
-            if (initSt === 'Graze') initSt = idx % 3 === 0 ? 'DustBath' : (idx % 2 === 0 ? 'Idle' : 'Walk');
-            if ((initSt === 'Idle' || initSt === 'DustBath') && isInRiver(spec.x, spec.z, 1.55)) initSt = 'Walk';
+          const fCfg = getWorldConfig().flock;
+          if (!fCfg.canGraze && initSt === 'Graze') {
+            initSt = fCfg.spawnPool[idx % fCfg.spawnPool.length];
+          }
+          if (fCfg.avoidWaterForRest && (initSt === 'Idle' || initSt === 'DustBath') && isInRiver(spec.x, spec.z, 1.55)) {
+            initSt = 'Walk';
           }
           const s = createSheep(spec.x, spec.z, spec.r, initSt);
           s.spawnScale = 1;
@@ -4827,84 +6392,32 @@
         { id: 'DustBath', label: '沙浴打滚' }
       ];
 
-      // Strict per-world capability & behavior registry (zero cross-world leakage!)
-      const WORLD_RULES = {
-        meadow: {
-          guardian: {
-            species: 'cat',
-            states: CAT_STATES,
-            canClimbRoof: true,
-            canReefFish: true,
-            canHuntButterflies: true,
-            canScratchGrass: true,
-            canDigSand: false,
-            canPantCool: false
-          },
-          flock: {
-            species: 'sheep',
-            states: SHEEP_STATES_UI,
-            defaultResetState: 'Graze',
-            spawnPool: ['Graze', 'Walk', 'Idle', 'Jump'],
-            canGraze: true,
-            canVaultOverPeer: true,
-            canDustBath: false,
-            canSpit: false,
-            canWadeOasis: false,
-            avoidWaterForRest: false
-          }
-        },
-        desert: {
-          guardian: {
-            species: 'fennec',
-            states: FENNEC_STATES,
-            canClimbRoof: false,
-            canReefFish: false,
-            canHuntButterflies: false,
-            canScratchGrass: false,
-            canDigSand: true,
-            canPantCool: true
-          },
-          flock: {
-            species: 'alpaca',
-            states: ALPACA_STATES_UI,
-            defaultResetState: 'Walk',
-            spawnPool: ['Walk', 'Idle', 'Jump', 'Spit', 'DustBath'],
-            canGraze: false,
-            canVaultOverPeer: false,
-            canDustBath: true,
-            canSpit: true,
-            canWadeOasis: true,
-            avoidWaterForRest: true
-          }
-        }
-      };
-      function getWorldRules() {
-        return WORLD_RULES[currentWorld] || WORLD_RULES.meadow;
-      }
 
       let goldenCat = null;
 
       function createGoldenCat(x, z, rotY) {
-        const isFennec = currentWorld === 'desert';
+        const gSpecies = getWorldConfig().guardian.species;
+        const isFennec = gSpecies === 'fennec';
+        const isRedPanda = gSpecies === 'red_panda';
         const goldBackMat = new THREE.MeshStandardMaterial({
-          color: isFennec ? 0xeed2a4 : 0xe69c14,
+          color: isRedPanda ? 0xc95224 : (isFennec ? 0xeed2a4 : 0xe69c14),
           bumpMap: feltBumpTex, bumpScale: 0.018, roughness: 0.91, metalness: 0.0
         });
         const goldLightMat = new THREE.MeshStandardMaterial({
-          color: isFennec ? 0xf6e2be : 0xf8c338,
+          color: isRedPanda ? 0x35241e : (isFennec ? 0xf6e2be : 0xf8c338),
           bumpMap: feltBumpTex, bumpScale: 0.016, roughness: 0.91, metalness: 0.0
         });
         const creamBellyMat = new THREE.MeshStandardMaterial({
-          color: isFennec ? 0xfef7e8 : 0xfce48c,
+          color: isRedPanda ? 0xfbf5ea : (isFennec ? 0xfef7e8 : 0xfce48c),
           bumpMap: feltBumpTex, bumpScale: 0.015, roughness: 0.92, metalness: 0.0
         });
         const darkTipMat = new THREE.MeshStandardMaterial({
-          color: isFennec ? 0x453022 : 0xa65c0a,
+          color: isRedPanda ? 0x2b1d18 : (isFennec ? 0x453022 : 0xa65c0a),
           bumpMap: feltBumpTex, bumpScale: 0.016, roughness: 0.90, metalness: 0.0
         });
         const pinkNoseMat = new THREE.MeshStandardMaterial({ color: isFennec ? 0xf2a8a0 : 0xf097a6, roughness: 0.86 });
         const fennecNoseMat = new THREE.MeshStandardMaterial({ color: 0x221b18, roughness: 0.72 });
-        const greenEyeMat = new THREE.MeshBasicMaterial({ color: isFennec ? 0x291f1a : 0x4ca650 });
+        const greenEyeMat = new THREE.MeshBasicMaterial({ color: (isFennec || isRedPanda) ? 0x291f1a : 0x4ca650 });
         const pupilMat = new THREE.MeshBasicMaterial({ color: 0x18181b });
 
         const root = new THREE.Group();
@@ -4935,7 +6448,7 @@
         chestMesh.castShadow = true;
         torsoPivot.add(chestMesh);
 
-        const bellyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), creamBellyMat);
+        const bellyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12), isRedPanda ? darkTipMat : creamBellyMat);
         bellyMesh.scale.set(0.86, 0.68, 1.38);
         bellyMesh.position.set(0, -0.07, 0.04);
         bellyMesh.castShadow = true;
@@ -4967,7 +6480,65 @@
           foxTongue.position.set(0, -0.055, 0.295); foxTongue.rotation.x = 0.42; foxTongue.visible = false;
           headPivot.add(foxTongue);
         }
-        const nose = new THREE.Mesh(new THREE.SphereGeometry(isFennec ? 0.032 : 0.028, 8, 8), isFennec ? fennecNoseMat : pinkNoseMat);
+        let pandaBlush = [];
+        let pandaBamboo = null;
+        if (isRedPanda) {
+          // Iconic white muzzle & cute white eyebrow dots
+          const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), creamBellyMat);
+          muzzle.scale.set(1.15, 0.85, 1.0);
+          muzzle.position.set(0, -0.015, 0.22);
+          headPivot.add(muzzle);
+          const blushMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.88 });
+          [-1, 1].forEach(side => {
+            const brow = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), creamBellyMat);
+            brow.position.set(side * 0.088, 0.135, 0.22);
+            headPivot.add(brow);
+            const bl = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 8), blushMat);
+            bl.scale.set(1.25, 0.72, 0.5);
+            bl.position.set(side * 0.145, 0.015, 0.195);
+            bl.visible = false;
+            headPivot.add(bl);
+            pandaBlush.push(bl);
+          });
+
+          // Prominent, clearly visible 3D segmented emerald bamboo stalk + lush leaf cluster held during Bamboo state!
+          const bamStalkMat = new THREE.MeshStandardMaterial({ color: 0x4ca638, bumpMap: feltBumpTex, bumpScale: 0.014, roughness: 0.78 });
+          const bamNodeMat = new THREE.MeshStandardMaterial({ color: 0xd9f2a8, roughness: 0.85 });
+          const bamLeafMat = new THREE.MeshStandardMaterial({ color: 0x74d14c, roughness: 0.80, side: THREE.DoubleSide });
+          pandaBamboo = new THREE.Group();
+          // Horizontal segmented bamboo stalk held across both paws so it reads crisply from top-down!
+          const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.056, 1.06, 10), bamStalkMat);
+          stalk.rotation.z = Math.PI / 2;
+          stalk.castShadow = true;
+          pandaBamboo.add(stalk);
+          // Pale cream bamboo joint rings spaced along the horizontal stalk
+          [-0.28, 0.0, 0.28].forEach(nx => {
+            const node = new THREE.Mesh(new THREE.TorusGeometry(0.053, 0.014, 6, 12), bamNodeMat);
+            node.rotation.y = Math.PI / 2;
+            node.position.x = nx;
+            pandaBamboo.add(node);
+          });
+          // Lush bright green bamboo leaves fanning out at both ends of the horizontal stalk
+          [
+            { x:  0.54, y:  0.08, z:  0.03, rz:  0.42, ry:  0.25 },
+            { x:  0.50, y: -0.06, z:  0.05, rz: -0.45, ry: -0.20 },
+            { x:  0.42, y:  0.11, z: -0.04, rz:  0.72, ry:  0.35 },
+            { x: -0.52, y:  0.06, z:  0.03, rz: -0.38, ry: -0.25 },
+            { x: -0.46, y: -0.05, z: -0.03, rz:  0.46, ry:  0.22 }
+          ].forEach(lf => {
+            const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.096, 10, 6), bamLeafMat);
+            leaf.scale.set(1.78, 0.46, 0.24);
+            leaf.position.set(lf.x, lf.y, lf.z);
+            leaf.rotation.set(0.22, lf.ry, lf.rz);
+            leaf.castShadow = true;
+            pandaBamboo.add(leaf);
+          });
+          pandaBamboo.position.set(0.0, 0.48, 0.50);
+          pandaBamboo.rotation.set(0.0, 0.0, 0.0);
+          pandaBamboo.visible = false;
+          bodyRig.add(pandaBamboo);
+        }
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(isFennec ? 0.032 : 0.028, 8, 8), (isFennec || isRedPanda) ? fennecNoseMat : pinkNoseMat);
         nose.scale.set(1.15, 0.85, 0.8);
         nose.position.set(0, isFennec ? 0.00 : 0.015, isFennec ? 0.365 : 0.265);
         headPivot.add(nose);
@@ -5007,6 +6578,15 @@
             const earInner = new THREE.Mesh(new THREE.ConeGeometry(0.105, 0.34, 6), pinkNoseMat);
             earInner.scale.set(1.0, 1.0, 0.35); earInner.position.set(0, 0.17, 0.032);
             earPivot.add(earInner);
+          } else if (isRedPanda) {
+            earPivot.position.set(side * 0.155, 0.205, 0.03);
+            earPivot.rotation.z = side * -0.32;
+            const earOuter = new THREE.Mesh(new THREE.SphereGeometry(0.082, 10, 8), creamBellyMat);
+            earOuter.scale.set(0.95, 1.12, 0.48); earOuter.position.y = 0.05; earOuter.castShadow = true;
+            earPivot.add(earOuter);
+            const earCore = new THREE.Mesh(new THREE.SphereGeometry(0.056, 8, 6), darkTipMat);
+            earCore.scale.set(0.92, 1.05, 0.42); earCore.position.set(0, 0.045, 0.022);
+            earPivot.add(earCore);
           } else {
             earPivot.position.set(side * 0.145, 0.20, 0.04);
             earPivot.rotation.z = side * -0.26;
@@ -5035,7 +6615,7 @@
           upper.castShadow = true;
           legPivot.add(upper);
 
-          const paw = new THREE.Mesh(new THREE.SphereGeometry(isFennec ? 0.062 : 0.054, 10, 8), isFennec ? darkTipMat : creamBellyMat);
+          const paw = new THREE.Mesh(new THREE.SphereGeometry((isFennec || isRedPanda) ? 0.062 : 0.054, 10, 8), (isFennec || isRedPanda) ? darkTipMat : creamBellyMat);
           paw.scale.set(1.0, 0.68, 1.25);
           paw.position.set(0, -0.25, 0.025);
           paw.castShadow = true;
@@ -5069,7 +6649,18 @@
         else { tailSeg2.rotation.x = Math.PI / 2; tailSeg2.position.set(0, 0, -0.11); }
         tailSeg2.castShadow = true; tailTipPivot.add(tailSeg2);
 
-        const tailEnd = new THREE.Mesh(new THREE.SphereGeometry(isFennec ? 0.072 : 0.042, 10, 8), darkTipMat);
+        if (isRedPanda) {
+          // Plush banded rust-and-cream rings along the red panda tail!
+          [-0.08, -0.22].forEach((tz, i) => {
+            const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.075, 12), i % 2 === 0 ? creamBellyMat : darkTipMat);
+            ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.01, tz); tailBase.add(ring);
+          });
+          [-0.08, -0.20].forEach((tz, i) => {
+            const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.072, 0.065, 12), i % 2 === 0 ? creamBellyMat : darkTipMat);
+            ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.01, tz); tailTipPivot.add(ring);
+          });
+        }
+        const tailEnd = new THREE.Mesh(new THREE.SphereGeometry((isFennec || isRedPanda) ? 0.072 : 0.042, 10, 8), darkTipMat);
         tailEnd.position.set(0, 0, isFennec ? -0.26 : -0.23);
         tailTipPivot.add(tailEnd);
 
@@ -5146,6 +6737,21 @@
         purrSprite.visible = false;
         bodyRig.add(purrSprite);
 
+        // Red Panda dedicated mood sticker sprite (☁️ rest / ⚡ threaten / 💫 dizzy)
+        const pandaMoodMat = new THREE.SpriteMaterial({
+          map: cloudRestTex,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false
+        });
+        const pandaMoodSprite = new THREE.Sprite(pandaMoodMat);
+        pandaMoodSprite.position.set(0.0, 1.48, 0.18);
+        pandaMoodSprite.scale.set(0.01, 0.01, 1);
+        pandaMoodSprite.renderOrder = 1000;
+        pandaMoodSprite.visible = false;
+        bodyRig.add(pandaMoodSprite);
+
         const hitMesh = new THREE.Mesh(
           new THREE.BoxGeometry(0.92, 0.92, 1.20),
           new THREE.MeshBasicMaterial({ visible: false })
@@ -5156,11 +6762,19 @@
         const cat = {
           isCat: true,
           isFennec,
+          isRedPanda,
+          pandaBlush,
+          pandaBamboo,
+          pandaMoodSprite,
+          pandaMoodPop: 0,
+          threatenCycle: 0,
+          tumbleCycle: 0,
+          bambooFxTimer: 0.3,
           foxTongue,
           listenTimer: 0,
           digFxTimer: 0.2,
           leapPhase: 0,
-          id: isFennec ? 'fennec-fox' : 'golden-cat',
+          id: isRedPanda ? 'red-panda' : (isFennec ? 'fennec-fox' : 'golden-cat'),
           root,
           bodyRig,
           torsoPivot,
@@ -5334,7 +6948,7 @@
           if (c.stateTimer <= 0) {
             if (c.state === 'Sleep') {
               c.wakeStretchTimer = 2.4;
-              c.state = c.isFennec ? 'Listen' : 'Scratch';
+              c.state = c.isFennec ? 'Listen' : (c.isRedPanda ? 'Bamboo' : 'Scratch');
               c.stateTimer = 5.0 + Math.random() * 2.5;
             } else {
               const ids = gRule.states.map(st => st.id).filter(id => id !== c.state);
@@ -5388,8 +7002,30 @@
         let showFishCrave = false;
         let showShield = false;
         let showPurr = false;
+        let pandaMoodTex = null;
+        if (c.pandaBamboo) c.pandaBamboo.visible = false;
+        if (c.pandaBlush) c.pandaBlush.forEach(bl => { bl.visible = false; });
 
-        if (c.grabbed) {
+        if (c.grabbed && c.isRedPanda) {
+          // Red Panda frantic protest when lifted: 4 paws flailing outward + striped tail spinning like a propeller!
+          c.targetRotY = Math.atan2(
+            camera.position.x - c.root.position.x,
+            camera.position.z - c.root.position.z
+          );
+          bodyY = 0.24 + Math.sin(t * 16.0) * 0.05;
+          bodyPitch = -0.92 + Math.cos(t * 14.0) * 0.14;
+          bodyRoll = Math.sin(t * 18.0) * 0.22;
+          torsoY = 0.36;
+          headX = 0.65 + Math.sin(t * 20.0) * 0.12;
+          headY = Math.sin(t * 24.0) * 0.36;
+          earFlatten = 0.32;
+          legY = [0.28, 0.28, 0.24, 0.24];
+          legRotX = [-0.8 + Math.sin(t * 28.0) * 0.72, -0.8 - Math.sin(t * 28.0) * 0.72, 0.4 + Math.cos(t * 28.0) * 0.68, 0.4 - Math.cos(t * 28.0) * 0.68];
+          legRotZ = [-0.65, 0.65, -0.58, 0.58];
+          tailBaseX = 0.25;
+          tailBaseY = Math.sin(t * 26.0) * 1.18;
+          tailTipY = Math.cos(t * 26.0) * 0.95;
+        } else if (c.grabbed) {
           // Authentic scruff-held posture: hangs upright facing straight toward camera (head + belly + 4 tucked paws clearly visible!)
           c.targetRotY = Math.atan2(
             camera.position.x - c.root.position.x,
@@ -5783,6 +7419,26 @@
           legRotX = [-1.18 * sp, -1.18 * sp, 0.22 * sp, 0.22 * sp];
           tailBaseX = 0.5 + 0.85 * sp;
           tailTipX = -0.25 * sp;
+        } else if (c.state === 'Sleep' && c.isRedPanda) {
+          // Red Panda "Sploot" (摊饼抱尾): flat pancake sploot with 4 dark paws visibly splayed wide in a "大" starfish!
+          c.targetRotY = 0.0;
+          eyesClosed = true;
+          pandaMoodTex = cloudRestTex;
+          const breath = Math.sin(t * 2.0);
+          torsoY = 0.15;
+          torsoSX = 1.24 + breath * 0.03;
+          torsoSY = 0.64 + breath * 0.035;
+          torsoSZ = 1.12;
+          headX = 0.22;
+          headY = 0.24;
+          headZ = 0.16;
+          legY = [0.15, 0.15, 0.15, 0.15];
+          legRotX = [-1.48, -1.48, 1.48, 1.48];
+          legRotZ = [-0.72, 0.72, -0.72, 0.72];
+          tailBaseX = -0.18;
+          tailBaseY = -1.22;
+          tailTipX = 0.08;
+          tailTipY = -0.96 + Math.sin(t * 2.0) * 0.14;
         } else if (c.state === 'Sleep') {
           // Always curl up facing toward the screen (rotY = 0) with cute floating 💤
           c.targetRotY = 0.0;
@@ -5840,6 +7496,93 @@
             const fx = c.root.position.x + Math.sin(yaw) * 0.46 + Math.cos(yaw) * sideSign * 0.22;
             const fz = c.root.position.z + Math.cos(yaw) * 0.46 - Math.sin(yaw) * sideSign * 0.22;
             spawnSandDust(fx, baseGY, fz, 2);
+          }
+        } else if (c.state === 'Threaten' && c.isRedPanda) {
+          // Bluffing Threat Stance (虚张声势): stretch tall on tiptoes with ⚡ -> plop down on butt dizzy with 💫!
+          c.targetRotY = Math.atan2(camera.position.x - c.root.position.x, camera.position.z - c.root.position.z);
+          c.threatenCycle = (c.threatenCycle + dt) % 3.6;
+          if (c.threatenCycle < 2.15) {
+            pandaMoodTex = zapMarkTex;
+            const wob = Math.sin(t * 8.5);
+            torsoY = 0.60 + Math.abs(wob) * 0.03;
+            torsoPitch = -1.16;
+            torsoSY = 1.12;
+            bodyRoll = wob * 0.16;
+            headX = 0.84;
+            headY = wob * 0.14;
+            legY = [0.60, 0.60, 0.28, 0.28];
+            legRotX = [-2.68 + wob * 0.30, -2.68 - wob * 0.30, 0.14, 0.14];
+            legRotZ = [-0.52, 0.52, 0, 0];
+            tailBaseX = -0.40;
+            tailBaseY = wob * 0.30;
+          } else {
+            if (c.threatenCycle < 2.25 && c.dropSquash < 0.2) c.dropSquash = 0.92;
+            pandaMoodTex = dizzyMarkTex;
+            const daze = Math.sin(t * 5.2);
+            torsoY = 0.30;
+            torsoPitch = -0.54;
+            torsoSY = 0.92;
+            torsoSX = 1.08;
+            headX = 0.46;
+            headY = daze * 0.32;
+            headZ = daze * 0.24;
+            legY = [0.28, 0.28, 0.19, 0.19];
+            legRotX = [-0.35, -0.35, -1.12, -1.12];
+            tailBaseX = -0.18;
+            tailBaseY = 0.72 + daze * 0.16;
+          }
+        } else if (c.state === 'Bamboo' && c.isRedPanda) {
+          // Sitting upright munching tender green bamboo sprig with rosy blush & leaf crumbs (端坐啃竹)!
+          c.targetRotY = Math.atan2(camera.position.x - c.root.position.x, camera.position.z - c.root.position.z);
+          if (c.pandaBamboo) {
+            c.pandaBamboo.visible = true;
+            c.pandaBamboo.position.y = 0.48 + Math.sin(t * 14.0) * 0.022;
+            c.pandaBamboo.rotation.z = Math.sin(t * 9.0) * 0.09;
+          }
+          if (c.pandaBlush) c.pandaBlush.forEach(bl => { bl.visible = true; });
+          const munch = Math.sin(t * 14.0);
+          eyesClosed = true;
+          torsoY = 0.34;
+          torsoPitch = -0.56;
+          headX = 0.48 + munch * 0.11;
+          headY = Math.sin(t * 3.4) * 0.14;
+          headZ = 0.14 + Math.sin(t * 3.4) * 0.08;
+          legY = [0.38, 0.38, 0.20, 0.20];
+          legRotX = [-1.45 + munch * 0.08, -1.45 - munch * 0.08, -1.08, -1.08];
+          legRotZ = [0.32, -0.32, 0, 0];
+          tailBaseX = -0.16;
+          tailBaseY = 0.78 + Math.sin(t * 3.0) * 0.18;
+          c.bambooFxTimer -= dt;
+          if (c.bambooFxTimer <= 0) {
+            spawnGrassNibbles(c);
+            c.bambooFxTimer = 0.45 + Math.random() * 0.3;
+          }
+        } else if (c.state === 'Tumble' && c.isRedPanda) {
+          // Playful tail-chasing somersault roll -> sits up dizzy with spinning 💫 (追尾翻滚)!
+          c.tumbleCycle = (c.tumbleCycle + dt) % 3.2;
+          if (c.tumbleCycle < 1.35) {
+            const rp = c.tumbleCycle / 1.35;
+            bodyY = 0.26 + Math.sin(rp * Math.PI) * 0.20;
+            bodyRoll = rp * Math.PI * 2;
+            torsoY = 0.26;
+            torsoSX = 1.08;
+            torsoSZ = 0.88;
+            headX = 0.42;
+            headY = 0.45;
+            legRotX = [-0.85, -0.85, 0.85, 0.85];
+            tailBaseY = -1.05;
+          } else {
+            pandaMoodTex = dizzyMarkTex;
+            const daze = Math.sin(t * 6.0);
+            torsoY = 0.32;
+            torsoPitch = -0.50;
+            headX = 0.44;
+            headY = daze * 0.36;
+            headZ = daze * 0.22;
+            legY = [0.30, 0.30, 0.20, 0.20];
+            legRotX = [0.08, 0.08, -1.05, -1.05];
+            tailBaseX = -0.18;
+            tailBaseY = 0.75 + daze * 0.20;
           }
         } else if (c.state === 'Leap' && c.isFennec) {
           c.leapPhase = (c.leapPhase + dt * 1.15) % 1.0;
@@ -5933,17 +7676,32 @@
             c.targetRotY += (Math.random() - 0.5) * 1.15;
             c.walkTurnTimer = 2.4 + Math.random() * 2.8;
           }
-          const wp = t * 7.8;
-          const sw = Math.sin(wp) * 0.52;
-          legRotX = [sw, -sw, -sw, sw];
-          bodyY = Math.abs(Math.sin(wp)) * 0.04;
-          torsoPitch = 0.04;
-          headX = -0.05;
-          headY = Math.sin(t * 1.4) * 0.14;
-          tailBaseX = 1.18;
-          tailBaseY = Math.sin(t * 3.6) * 0.24;
-          tailTipX = -0.45;
-          tailTipY = Math.cos(t * 3.6) * 0.22;
+          if (c.isRedPanda) {
+            // Playful bouncy Red Panda hop-stride with tail held straight back as balance rod!
+            const hp = t * 7.2;
+            const hop = Math.abs(Math.sin(hp));
+            bodyY = hop * 0.16;
+            torsoPitch = -0.14 + Math.cos(hp) * 0.16;
+            headX = 0.04;
+            headY = Math.sin(t * 2.0) * 0.18;
+            legRotX = [-0.55 * hop, -0.55 * hop, 0.58 * hop, 0.58 * hop];
+            tailBaseX = 0.35;
+            tailBaseY = Math.sin(t * 4.2) * 0.24;
+            tailTipX = -0.10;
+            tailTipY = Math.cos(t * 4.2) * 0.20;
+          } else {
+            const wp = t * 7.8;
+            const sw = Math.sin(wp) * 0.52;
+            legRotX = [sw, -sw, -sw, sw];
+            bodyY = Math.abs(Math.sin(wp)) * 0.04;
+            torsoPitch = 0.04;
+            headX = -0.05;
+            headY = Math.sin(t * 1.4) * 0.14;
+            tailBaseX = 1.18;
+            tailBaseY = Math.sin(t * 3.6) * 0.24;
+            tailTipX = -0.45;
+            tailTipY = Math.cos(t * 3.6) * 0.22;
+          }
         } else {
           torsoY = 0.32;
           torsoPitch = -0.56;
@@ -6007,6 +7765,21 @@
         } else {
           c.earPivots[0].rotation.z += ((-0.26 - earFlatten) - c.earPivots[0].rotation.z) * k;
           c.earPivots[1].rotation.z += ((0.26 + earFlatten) - c.earPivots[1].rotation.z) * k;
+          if (c.isRedPanda) {
+            const sploot = c.state === 'Sleep' && !c.grabbed && !herdingEvent && c.angerTimer <= 0;
+            const fx = sploot ? 0.24 : 0.125;
+            const bx = sploot ? 0.25 : 0.135;
+            const fz = sploot ? 0.34 : 0.22;
+            const bz = sploot ? -0.34 : -0.24;
+            c.legs[0].position.x += (-fx - c.legs[0].position.x) * k;
+            c.legs[1].position.x += ( fx - c.legs[1].position.x) * k;
+            c.legs[2].position.x += (-bx - c.legs[2].position.x) * k;
+            c.legs[3].position.x += ( bx - c.legs[3].position.x) * k;
+            c.legs[0].position.z += ( fz - c.legs[0].position.z) * k;
+            c.legs[1].position.z += ( fz - c.legs[1].position.z) * k;
+            c.legs[2].position.z += ( bz - c.legs[2].position.z) * k;
+            c.legs[3].position.z += ( bz - c.legs[3].position.z) * k;
+          }
         }
 
         c.openEyes.forEach(e => { e.visible = !eyesClosed; });
@@ -6073,6 +7846,29 @@
           c.shieldSprite.material.rotation = Math.sin(t * 2.8) * 0.07;
         } else {
           c.shieldSprite.visible = false;
+        }
+
+        if (c.pandaMoodSprite) {
+          if (pandaMoodTex) {
+            if (c.pandaMoodSprite.material.map !== pandaMoodTex) {
+              c.pandaMoodSprite.material.map = pandaMoodTex;
+              c.pandaMoodSprite.material.needsUpdate = true;
+            }
+            c.pandaMoodPop = Math.min(1, c.pandaMoodPop + dt * 6.0);
+          } else {
+            c.pandaMoodPop = Math.max(0, c.pandaMoodPop - dt * 6.5);
+          }
+          if (c.pandaMoodPop > 0.01) {
+            c.pandaMoodSprite.visible = true;
+            const isDizzy = c.pandaMoodSprite.material.map === dizzyMarkTex;
+            const sz = 0.84 * c.pandaMoodPop * (1 + Math.sin(t * 6.5) * 0.08);
+            c.pandaMoodSprite.scale.set(sz, sz, 1);
+            c.pandaMoodSprite.position.set(0.0, 1.46 + Math.sin(t * 3.8) * 0.07, 0.18);
+            c.pandaMoodSprite.material.opacity = Math.min(1, c.pandaMoodPop * 1.2);
+            c.pandaMoodSprite.material.rotation = isDizzy ? (t * 4.5) : Math.sin(t * 4.0) * 0.12;
+          } else {
+            c.pandaMoodSprite.visible = false;
+          }
         }
 
         c.purrPop = showPurr ? Math.min(1, c.purrPop + dt * 5.5) : Math.max(0, c.purrPop - dt * 6.0);
@@ -6471,12 +8267,13 @@
         const dirZ = Math.cos(sheep.root.rotation.y);
         const mouthX = sheep.root.position.x + dirX * 0.62;
         const mouthZ = sheep.root.position.z + dirZ * 0.62;
+        const baseY = getGroundY(mouthX, mouthZ);
         for (let k = 0; k < 2; k++) {
           const mat = grassBitMats[(Math.random() * grassBitMats.length) | 0].clone();
           const mesh = new THREE.Mesh(grassBitGeo, mat);
           mesh.position.set(
             mouthX + (Math.random() - 0.5) * 0.18,
-            0.12 + Math.random() * 0.08,
+            baseY + 0.12 + Math.random() * 0.08,
             mouthZ + (Math.random() - 0.5) * 0.18
           );
           mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random() * 2);
@@ -6528,7 +8325,16 @@
         const prev = s.state;
         let next = prev;
         const fRule = getWorldRules().flock;
-        if (s.isAlpaca) {
+        if (s.isSquirrel) {
+          const r = Math.random();
+          if (preferRelaxed) next = r < 0.45 ? 'Nibble' : (r < 0.78 ? 'Walk' : 'Idle');
+          else if (r < 0.34) next = 'Nibble';
+          else if (r < 0.62) next = 'Walk';
+          else if (r < 0.78) next = 'Idle';
+          else if (r < 0.90) next = 'Bury';
+          else next = 'Jump';
+          if (next === prev && !preferRelaxed) next = prev === 'Walk' ? 'Nibble' : 'Walk';
+        } else if (s.isAlpaca) {
           if (fRule.avoidWaterForRest && isNearWaterOrBridge(s.root.position.x, s.root.position.z)) {
             next = 'Walk';
             s.targetRotY = getAwayFromRiverAngle(s.root.position.x, s.root.position.z);
@@ -6605,6 +8411,48 @@
             if (s.sweaterTimer <= 0) {
               s.rebirthTimer = 1.85;
               spawnGoldenRebirthFX(s);
+            }
+          }
+
+          // Forest squirrel empty-basket recovery timer -> golden refill celebration!
+          if (s.isSquirrel && s.basketEmpty && !s.grabbed && !s.herded && s.rebirthTimer <= 0) {
+            s.refillTimer -= dt;
+            if (s.refillTimer <= 0) {
+              s.rebirthTimer = 1.85;
+              spawnGoldenRebirthFX(s);
+            }
+          }
+
+          // Forest squirrel foraging: spot fallen ground nuts & scurry to collect them (or full-map 🤯 stampede!)
+          if (s.frenzyTimer > 0) s.frenzyTimer = Math.max(0, s.frenzyTimer - dt);
+          if (s.forageCooldown > 0) s.forageCooldown = Math.max(0, s.forageCooldown - dt);
+          if (
+            s.isSquirrel && !s.grabbed && !s.herded && !s.pairInteraction &&
+            s.angerTimer <= 0 && s.scaredTimer <= 0 && s.fleePenTimer <= 0 &&
+            s.celebrateTimer <= 0 && s.rebirthTimer <= 0 && !s.forageTarget &&
+            (s.frenzyTimer > 0 || s.forageCooldown <= 0) && forestNuts.length > 0 &&
+            (s.frenzyTimer > 0 || s.basketEmpty || s.state === 'Walk' || s.state === 'Idle' || s.state === 'Nibble')
+          ) {
+            const searchR = s.frenzyTimer > 0 ? 32.0 : (s.basketEmpty ? 14.0 : 7.2);
+            let bestNut = null;
+            let bestD = searchR;
+            const sBank = s.root.position.x >= getRiverCenterX(s.root.position.z);
+            for (let k = 0; k < forestNuts.length; k++) {
+              const fn = forestNuts[k];
+              if (fn.falling) continue;
+              const fnBank = fn.x >= getRiverCenterX(fn.z);
+              if (fnBank !== sBank) continue;
+              const d = Math.hypot(fn.x - s.root.position.x, fn.z - s.root.position.z);
+              const alreadyClaimed = fn.claimedBy && fn.claimedBy !== s && fn.claimedBy.forageTarget === fn;
+              if (s.frenzyTimer <= 0 && alreadyClaimed && Math.random() > 0.45) continue;
+              if (d < bestD) { bestD = d; bestNut = fn; }
+            }
+            if (bestNut && (s.frenzyTimer > 0 || s.basketEmpty || Math.random() < 0.72)) {
+              if (!bestNut.claimedBy) bestNut.claimedBy = s;
+              s.forageTarget = bestNut;
+              s.foragePickTimer = 0;
+            } else {
+              s.forageCooldown = s.basketEmpty ? 0.9 : (2.2 + Math.random() * 2.8);
             }
           }
 
@@ -6738,6 +8586,11 @@
           let showAngry = false;
           let showSweat = false;
           let showClap = false;
+          let showCry = false;
+          let sqMoodTex = null;
+          let sqCheekScale = 1.0;
+          let sqSquint = false;
+          if (s.squirrelAcorn) s.squirrelAcorn.visible = false;
 
           if (s.dropSquash > 0) {
             s.dropSquash = Math.max(0, s.dropSquash - dt * 3.8);
@@ -6810,6 +8663,33 @@
               targetHeadY = Math.sin(t * 4.2) * 0.65;
               targetHeadZ = Math.sin(t * 4.2) * 0.26;
               targetBodyY = Math.sin(t * 3.0) * 0.015;
+            } else if (st === 'shake_nuts') {
+              // Lifted into the air, flipped completely upside-down, and vigorously shaken over the wooden crate!
+              showSweat = true;
+              const jolt = Math.sin(t * 28.0);
+              targetBodyY = 1.26 + jolt * 0.14;
+              targetBodyRoll = Math.PI + Math.cos(t * 24.0) * 0.22;
+              targetBodyPitch = Math.sin(t * 20.0) * 0.14;
+              targetHeadX = -0.20 + jolt * 0.16;
+              targetHeadY = Math.sin(t * 22.0) * 0.35;
+              legSwing = Math.sin(t * 32.0) * 0.85;
+              legSwingBack = Math.cos(t * 32.0) * 0.85;
+            } else if (st === 'cry') {
+              // Landed upright with empty basket -> slumped sad posture & crying sticker!
+              showCry = true;
+              targetBodyY = -0.05;
+              targetBodyPitch = 0.22;
+              targetBodyRoll = Math.sin(t * 18.0) * 0.075;
+              targetScaleY = 0.90;
+              targetScaleXZ = 1.06;
+              targetHeadX = 0.44 + Math.sin(t * 9.0) * 0.08;
+              targetHeadZ = Math.sin(t * 6.5) * 0.16;
+              customLegX = [-0.95 + Math.sin(t * 10.0) * 0.18, -0.95 - Math.sin(t * 10.0) * 0.18, 0.2, 0.2];
+            } else if (st === 'exit_pen') {
+              const wp = t * 10.0;
+              legSwing = Math.sin(wp) * 0.48;
+              targetBodyY = Math.abs(Math.sin(wp)) * 0.05;
+              targetHeadX = 0.24;
             } else if (st === 'enter_house') {
               const wp = t * 10.0;
               legSwing = Math.sin(wp) * 0.48;
@@ -6864,7 +8744,34 @@
             const dz = partner.root.position.z - s.root.position.z;
             s.targetRotY = Math.atan2(dx, dz);
 
-            if (inter.type === 'love') {
+            if (inter.type === 'tug') {
+              if (inter.elapsed < 3.5) {
+                // Both squirrels lean back pulling the giant pinecone in opposite directions!
+                const pull = Math.sin(inter.elapsed * 12.0);
+                targetBodyPitch = -0.34 - Math.abs(pull) * 0.14;
+                targetBodyY = 0.03 + Math.abs(pull) * 0.03;
+                targetHeadX = 0.25;
+                targetHeadZ = (isFirst ? 1 : -1) * pull * 0.14;
+                customLegX = [-1.10 + pull * 0.18, -1.10 - pull * 0.18, 0.55, 0.55];
+                if (s.squirrelTailPivot) {
+                  s.squirrelTailPivot.rotation.x = 0.35 + pull * 0.22;
+                  s.squirrelTailPivot.rotation.z = pull * 0.35;
+                }
+              } else if (inter.winner === s) {
+                // Winner joyful victory bounce!
+                sqSquint = true;
+                const hop = Math.abs(Math.sin(inter.elapsed * 10.0));
+                targetBodyY = hop * 0.24;
+                targetBodyPitch = -0.25;
+                customLegX = [-1.2, -1.2, 0.3, 0.3];
+              } else {
+                // Loser sulks & flicks tail indignantly
+                targetBodyY = -0.04;
+                targetBodyPitch = 0.24;
+                targetHeadX = 0.42;
+                if (s.squirrelTailPivot) s.squirrelTailPivot.rotation.z = Math.sin(inter.elapsed * 14) * 0.45;
+              }
+            } else if (inter.type === 'love') {
               // Scenario 1: Gentle affectionate head-to-head nuzzling
               const nuzzle = Math.sin(inter.elapsed * 4.4);
               targetHeadX = 0.12 + Math.sin(inter.elapsed * 2.8) * 0.06;
@@ -7075,6 +8982,74 @@
               targetBodyY = -0.03;
               targetHeadX = 0.24;
             }
+          } else if (s.forageTarget) {
+            const fn = s.forageTarget;
+            if (!forestNuts.includes(fn)) {
+              s.forageTarget = null;
+            } else {
+              const dx = fn.x - s.root.position.x;
+              const dz = fn.z - s.root.position.z;
+              const dist = Math.hypot(dx, dz);
+              if (dist > 0.42 && s.foragePickTimer <= 0) {
+                s.targetRotY = Math.atan2(dx, dz);
+                const runSpd = s.frenzyTimer > 0 ? 2.45 : (s.basketEmpty ? 1.85 : 1.45);
+                stepForwardSafely(s, runSpd, dt, 0.65, false);
+                const wp = t * (s.frenzyTimer > 0 ? 16.5 : 11.5);
+                legSwing = Math.sin(wp) * (s.frenzyTimer > 0 ? 0.72 : 0.56);
+                targetBodyY = Math.abs(Math.sin(wp)) * (s.frenzyTimer > 0 ? 0.11 : 0.07);
+                targetHeadX = 0.14;
+                if (s.squirrelTailPivot) {
+                  s.squirrelTailPivot.rotation.x = -0.12 + Math.sin(wp) * 0.14;
+                }
+              } else {
+                // Check if a rival squirrel also reached or is racing right next to this nut -> tug-of-war scramble!
+                let rival = null;
+                for (let r = 0; r < sheepList.length; r++) {
+                  const other = sheepList[r];
+                  if (other === s || !other.isSquirrel || other.deleting || other.grabbed || other.herded || other.pairInteraction) continue;
+                  const rd = Math.hypot(other.root.position.x - fn.x, other.root.position.z - fn.z);
+                  if (rd < 1.35 && (other.forageTarget === fn || Math.random() < 0.35)) {
+                    rival = other;
+                    break;
+                  }
+                }
+                if (rival) {
+                  worldEnvGroup.remove(fn.mesh);
+                  const idx = forestNuts.indexOf(fn);
+                  if (idx !== -1) forestNuts.splice(idx, 1);
+                  s.forageTarget = null;
+                  s.foragePickTimer = 0;
+                  if (rival.forageTarget === fn) { rival.forageTarget = null; rival.foragePickTimer = 0; }
+                  startPairInteraction(s, rival, 'tug');
+                } else {
+                  // Reached the ground nut -> bend down & scoop it into the basket!
+                  s.foragePickTimer += dt;
+                  targetBodyPitch = 0.36;
+                  targetHeadX = 0.62;
+                  customLegX = [-0.75, -0.75, 0.12, 0.12];
+                  if (s.foragePickTimer >= 0.36) {
+                    worldEnvGroup.remove(fn.mesh);
+                    const idx = forestNuts.indexOf(fn);
+                    if (idx !== -1) forestNuts.splice(idx, 1);
+                    s.forageTarget = null;
+                    s.foragePickTimer = 0;
+                    s.forageCooldown = s.basketEmpty ? 0.8 : (2.4 + Math.random() * 3.0);
+                    s.dropSquash = 0.75;
+                    if (s.basketEmpty) {
+                      s.nutsCollected = (s.nutsCollected || 0) + 1;
+                      if (s.basketNutsGroup) {
+                        s.basketNutsGroup.visible = true;
+                        s.basketNutsGroup.children.forEach((ch, ci) => { ch.visible = ci < s.nutsCollected; });
+                      }
+                      if (s.nutsCollected >= 6 && s.rebirthTimer <= 0) {
+                        s.rebirthTimer = 1.85;
+                        spawnGoldenRebirthFX(s);
+                      }
+                    }
+                  }
+                }
+              }
+            }
           } else if (s.followLeader) {
             s.followTimer -= dt;
             const ld = s.followLeader;
@@ -7093,6 +9068,60 @@
               } else if (dist >= 6.0) {
                 s.followLeader = null;
               }
+            }
+          } else if (s.state === 'Nibble' && s.isSquirrel) {
+            // Cheek-Stuffing Frenzy (狂塞颊囊): rapid paw stuffing + visibly inflating cheek pouches + happy squint eyes!
+            s.stateTimer -= dt;
+            if (s.stateTimer <= 0) pickNextFlockState(s, false);
+            sqSquint = true;
+            sqCheekScale = 1.48 + Math.sin(t * 10.0) * 0.20;
+            targetBodyY = 0.05;
+            targetBodyPitch = -0.48;
+            targetHeadX = 0.34 + Math.sin(t * 20.0) * 0.14;
+            targetHeadY = Math.sin(t * 5.5) * 0.10;
+            customLegX = [-1.24 + Math.sin(t * 22.0) * 0.26, -1.24 - Math.sin(t * 22.0) * 0.26, 0.46, 0.46];
+            if (s.squirrelAcorn) s.squirrelAcorn.visible = true;
+            if (s.squirrelTailPivot) {
+              s.squirrelTailPivot.rotation.x = 0.24 + Math.sin(t * 7.5) * 0.14;
+              s.squirrelTailPivot.rotation.z = Math.sin(t * 5.0) * 0.16;
+            }
+            if (Math.random() < dt * 1.8) spawnGrassNibbles(s);
+          } else if (s.state === 'Bury' && s.isSquirrel) {
+            // Sneaky Treasure Bury (偷瞄藏宝): 👀 furtive look-around -> frantic digging -> proud pat & hop!
+            s.stateTimer -= dt;
+            if (s.stateTimer <= 0) pickNextFlockState(s, true);
+            s.buryCycle = (s.buryCycle + dt) % 4.2;
+            if (s.buryCycle < 1.35) {
+              sqMoodTex = peekMarkTex;
+              const snap = Math.floor(s.buryCycle * 3.0) % 3;
+              targetBodyPitch = 0.08;
+              targetHeadX = -0.05;
+              targetHeadY = snap === 0 ? -0.82 : (snap === 1 ? 0.82 : 0.0);
+              customLegX = [-0.45, -0.45, 0.18, 0.18];
+              if (s.squirrelTailPivot) s.squirrelTailPivot.rotation.z = Math.sin(t * 14) * 0.16;
+            } else if (s.buryCycle < 3.35) {
+              const dig = Math.sin(t * 18.0);
+              targetBodyY = 0.02 + Math.abs(dig) * 0.025;
+              targetBodyPitch = 0.36;
+              targetHeadX = 0.50 + dig * 0.12;
+              customLegX = [-0.68 + dig * 0.58, -0.68 - dig * 0.58, 0.12, 0.12];
+              if (s.squirrelTailPivot) {
+                s.squirrelTailPivot.rotation.x = -0.18 + Math.sin(t * 11.0) * 0.16;
+                s.squirrelTailPivot.rotation.z = Math.sin(t * 9.0) * 0.18;
+              }
+              if (Math.random() < dt * 4.5) spawnGrassNibbles(s);
+            } else {
+              if (!s.moundSpawnedThisCycle) {
+                s.moundSpawnedThisCycle = true;
+                const yaw = s.root.rotation.y;
+                spawnBuryMound(s.root.position.x + Math.sin(yaw) * 0.36, s.root.position.z + Math.cos(yaw) * 0.36);
+              }
+              const hopP = (s.buryCycle - 3.35) / 0.85;
+              sqSquint = true;
+              targetBodyY = Math.sin(hopP * Math.PI) * 0.26;
+              targetBodyPitch = -0.16;
+              customLegX = [-0.8, -0.8, 0.3, 0.3];
+              if (hopP > 0.92) s.moundSpawnedThisCycle = false;
             }
           } else if (s.state === 'Spit' && s.isAlpaca) {
             s.spitCycle = (s.spitCycle + dt * 0.62) % 1.0;
@@ -7210,7 +9239,20 @@
               pickNextFlockState(s, s.state === 'Jump');
             }
             if (s.state === 'Idle') {
-            if (s.isAlpaca) {
+            if (s.isSquirrel) {
+              // Alert Freeze (机警冻住): bolt-upright freeze, paws pressed to chest, crisp 90° head snaps & ❗ sticker!
+              sqMoodTex = alertMarkTex;
+              const snapIdx = Math.floor(t * 2.1) % 4;
+              targetBodyY = 0.05;
+              targetBodyPitch = -0.54;
+              targetHeadX = 0.28;
+              targetHeadY = snapIdx === 0 ? -0.85 : (snapIdx === 2 ? 0.85 : 0.0);
+              customLegX = [-1.18, -1.18, 0.48, 0.48];
+              if (s.squirrelTailPivot) {
+                s.squirrelTailPivot.rotation.x = 0.28 + Math.sin(t * 18.0) * 0.08;
+                s.squirrelTailPivot.rotation.z = Math.sin(t * 22.0) * 0.12;
+              }
+            } else if (s.isAlpaca) {
               if (isNearWaterOrBridge(s.root.position.x, s.root.position.z, -0.15)) {
                 s.state = 'Walk';
                 s.targetRotY = getAwayFromRiverAngle(s.root.position.x, s.root.position.z);
@@ -7318,6 +9360,34 @@
                   s.targetRotY += (Math.random() - 0.5) * 1.3;
                 }
               }
+            }
+          } else if (s.state === 'Walk' && s.isSquirrel) {
+            // Dart-and-Brake Pulse Run (冲刺急刹): fast bounding sprint -> sudden upright stop & scan -> dart again!
+            s.dartTimer -= dt;
+            if (s.dartTimer <= 0) {
+              s.dartPhase = s.dartPhase === 'run' ? 'brake' : 'run';
+              s.dartTimer = s.dartPhase === 'run' ? (0.85 + Math.random() * 0.55) : (0.42 + Math.random() * 0.30);
+              if (s.dartPhase === 'run' && s.avoidCooldown <= 0) {
+                s.targetRotY += (Math.random() - 0.5) * 1.1;
+              }
+            }
+            if (s.dartPhase === 'run') {
+              stepForwardSafely(s, 2.05, dt, 0.76);
+              const bp = t * 16.5;
+              legSwing = Math.sin(bp) * 0.68;
+              targetBodyY = Math.abs(Math.sin(bp)) * 0.11;
+              targetBodyPitch = Math.sin(bp) * 0.22;
+              targetHeadX = 0.04;
+              if (s.squirrelTailPivot) {
+                s.squirrelTailPivot.rotation.x = -0.35 + Math.sin(bp) * 0.18;
+              }
+            } else {
+              // Sudden crisp brake & quick scan!
+              targetBodyY = 0.04;
+              targetBodyPitch = -0.38;
+              targetHeadX = 0.20;
+              targetHeadY = Math.sin(t * 14.0) * 0.62;
+              customLegX = [-0.95, -0.95, 0.32, 0.32];
             }
           } else if (s.state === 'Walk') {
             // Smooth forward walking with reliable riverbank & border avoidance
@@ -7442,7 +9512,7 @@
           s.bodyRig.position.y += (targetBodyY - s.bodyRig.position.y) * Math.min(1, dt * 16);
           s.bodyRig.rotation.x += (targetBodyPitch - s.bodyRig.rotation.x) * Math.min(1, dt * 12);
           s.bodyRig.rotation.z += (targetBodyRoll - s.bodyRig.rotation.z) * Math.min(1, dt * 14);
-          const baseS = 1.16;
+          const baseS = s.isSquirrel ? 1.06 : 1.16;
           s.bodyRig.scale.y += (targetScaleY * baseS - s.bodyRig.scale.y) * Math.min(1, dt * 14);
           s.bodyRig.scale.x += (targetScaleXZ * baseS - s.bodyRig.scale.x) * Math.min(1, dt * 14);
           s.bodyRig.scale.z += (targetScaleXZ * baseS - s.bodyRig.scale.z) * Math.min(1, dt * 14);
@@ -7500,6 +9570,64 @@
             s.clapSprite.material.rotation = Math.sin(t * 7.5) * 0.12;
           } else {
             s.clapSprite.visible = false;
+          }
+
+          // Animate cute crying sticker ('😭') when squirrel's basket is shaken empty
+          if (showCry) {
+            s.cryPop = Math.min(1, s.cryPop + dt * 6.0);
+          } else {
+            s.cryPop = Math.max(0, s.cryPop - dt * 6.5);
+          }
+          if (s.cryPop > 0.01) {
+            s.crySprite.visible = true;
+            const cryPulse = 1 + Math.sin(t * 10.0) * 0.08;
+            const sz = 0.88 * s.cryPop * cryPulse;
+            s.crySprite.scale.set(sz, sz, 1);
+            s.crySprite.position.y = 1.48 + Math.sin(t * 6.0) * 0.06;
+            s.crySprite.material.opacity = Math.min(1, s.cryPop * 1.25);
+            s.crySprite.material.rotation = Math.sin(t * 9.0) * 0.10;
+          } else {
+            s.crySprite.visible = false;
+          }
+
+          // Animate squirrel cheek pouch inflation, happy squint eyes & 🤯/❗/👀 mood sticker
+          if (s.isSquirrel) {
+            if (s.frenzyTimer > 0 && !showCry) {
+              sqMoodTex = mindBlownMarkTex;
+            }
+            if (s.squirrelCheeks) {
+              const ckK = Math.min(1, dt * 12);
+              s.squirrelCheeks.forEach(ch => {
+                ch.scale.x += (sqCheekScale - ch.scale.x) * ckK;
+                ch.scale.y += (sqCheekScale * 0.88 - ch.scale.y) * ckK;
+                ch.scale.z += (sqCheekScale * 0.96 - ch.scale.z) * ckK;
+              });
+            }
+            if (s.sqOpenEyes && s.sqHappyLids) {
+              s.sqOpenEyes.forEach(e => { e.visible = !sqSquint; });
+              s.sqHappyLids.forEach(l => { l.visible = sqSquint; });
+            }
+            if (s.sqMoodSprite) {
+              if (sqMoodTex) {
+                if (s.sqMoodSprite.material.map !== sqMoodTex) {
+                  s.sqMoodSprite.material.map = sqMoodTex;
+                  s.sqMoodSprite.material.needsUpdate = true;
+                }
+                s.sqMoodPop = Math.min(1, s.sqMoodPop + dt * 7.0);
+              } else {
+                s.sqMoodPop = Math.max(0, s.sqMoodPop - dt * 7.0);
+              }
+              if (s.sqMoodPop > 0.01) {
+                s.sqMoodSprite.visible = true;
+                const sz = 0.76 * s.sqMoodPop * (1 + Math.sin(t * 10.0) * 0.08);
+                s.sqMoodSprite.scale.set(sz, sz, 1);
+                s.sqMoodSprite.position.y = 1.48 + Math.sin(t * 6.0) * 0.05;
+                s.sqMoodSprite.material.opacity = Math.min(1, s.sqMoodPop * 1.25);
+                s.sqMoodSprite.material.rotation = Math.sin(t * 8.0) * 0.10;
+              } else {
+                s.sqMoodSprite.visible = false;
+              }
+            }
           }
 
           // Dynamic contact AO shadow shrinks & softens as sheep jumps or is lifted
@@ -7848,20 +9976,21 @@
 
         const rect = canvas.getBoundingClientRect();
         const worldPt = pickMeadowPoint(rect.left + cx, rect.top + cy);
+        const wCfg = getWorldConfig();
         if (!worldPt) {
-          showToast('请在草地区域画圈生成小羊');
+          showToast(wCfg.circleOutsideToast);
           return true;
         }
         if (isInsidePen(worldPt.x, worldPt.z, 0.25)) {
-          showToast('羊这么可爱，不要这么残忍');
+          showToast(wCfg.circlePenToast);
           return true;
         }
         if (isInRiver(worldPt.x, worldPt.z, RIVER_MARGIN) && !isOnBridge(worldPt.x, worldPt.z, 0)) {
-          showToast('河道上不能放羊，请在草地或木桥上画圈');
+          showToast(wCfg.circleWaterToast);
           return true;
         }
         if (sheepList.length >= 24) {
-          showToast('草地最多容纳 24 只小羊');
+          showToast(getWorldConfig().maxFlockToast);
           return true;
         }
 
@@ -8015,7 +10144,7 @@
             } else {
               sheep.root.position.x = grabState.originX;
               sheep.root.position.z = grabState.originZ;
-              showToast(grabState.blockedByPen ? '羊这么可爱，不要这么残忍' : '河道或草地外不能放置，已放回原位');
+              showToast(grabState.blockedByPen ? getWorldConfig().circlePenToast : getWorldConfig().invalidDropToast);
             }
             sheep.dropSquash = 1.0;
 
@@ -8075,7 +10204,8 @@
                   }
                 }
                 if (nearestSh) {
-                  if (!herdingEvent && Math.random() < 0.45 && startHerdingEvent(nearestSh)) {
+                  const herdProb = nearestSh.isSquirrel ? 0.85 : 0.45;
+                  if (!herdingEvent && Math.random() < herdProb && startHerdingEvent(nearestSh)) {
                     setCanvasCursor('default');
                     selectSheep(null);
                     return;
@@ -8126,6 +10256,13 @@
                       sheep.state = 'Walk';
                     }
                   }
+                  if (sheep.isRedPanda) {
+                    // Huff indignantly into a quick reflexive Threaten stance right after being put down!
+                    sheep.state = 'Threaten';
+                    sheep.threatenCycle = 0;
+                    sheep.stateTimer = 3.8;
+                    if (selectedSheep === sheep) syncToolbarActiveButton();
+                  }
                   // Dropped near the riverbank: immediately allow fish-watching & ensure a fish is swimming nearby
                   const riverDist = Math.abs(sheep.root.position.x - getRiverCenterX(sheep.root.position.z)) - getRiverHalfWidth(sheep.root.position.z);
                   if (getWorldRules().guardian.canReefFish && riverDist < 2.8 && !sheep.reefAction) {
@@ -8151,7 +10288,8 @@
               const cdz = sheep.root.position.z - goldenCat.root.position.z;
               const cdist = Math.hypot(cdx, cdz);
               if (cdist < 1.95) {
-                if (!herdingEvent && Math.random() < 0.45 && startHerdingEvent(sheep)) {
+                const herdProb = sheep.isSquirrel ? 0.85 : 0.45;
+                if (!herdingEvent && Math.random() < herdProb && startHerdingEvent(sheep)) {
                   setCanvasCursor('default');
                   selectSheep(null);
                   return;
@@ -8284,6 +10422,38 @@
             selectSheep(hit);
             return;
           }
+          // Check click on Forest nut crate -> nut fountain frenzy!
+          if (forestCrateHitMesh) {
+            const rect = canvas.getBoundingClientRect();
+            pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(pointer, camera);
+            if (raycaster.intersectObject(forestCrateHitMesh, false).length > 0) {
+              triggerCrateFountain();
+              selectSheep(null);
+              return;
+            }
+          }
+          // Check click on Forest pine trees -> shake tree & drop 3 fresh nuts!
+          if (forestPineHitMeshes.length > 0) {
+            const rect = canvas.getBoundingClientRect();
+            pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(pointer, camera);
+            const pineHits = raycaster.intersectObjects(forestPineHitMeshes, false);
+            if (pineHits.length > 0) {
+              const pineGrp = pineHits[0].object.userData.pineTree;
+              if (pineGrp && pineGrp.userData) {
+                pineGrp.userData.shakeTimer = 0.72;
+                const origin = { x: pineGrp.userData.tx, z: pineGrp.userData.tz };
+                for (let k = 0; k < 3; k++) spawnForestGroundNut(true, origin);
+                sheepList.forEach(s => { if (s.isSquirrel) s.forageCooldown = 0; });
+                showToast('摇晃松树，哗啦掉下了几颗饱满坚果！');
+              }
+              selectSheep(null);
+              return;
+            }
+          }
           // Check click on the red cottage -> toggle warm interior lights & puff a big chimney smoke ring!
           if (cottageHitMesh) {
             const rect = canvas.getBoundingClientRect();
@@ -8303,7 +10473,13 @@
               const rMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.82, side: THREE.DoubleSide });
               const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.06, 8, 18), rMat);
               ring.rotation.x = Math.PI / 2;
-              ring.position.set(HOUSE_X + 0.62, getTerrainHeight(HOUSE_X, HOUSE_Z) + 2.45, HOUSE_Z - 0.32);
+              const smkOrig = getWorldConfig().env.smokeOrigin;
+              const cosH = Math.cos(-0.18), sinH = Math.sin(-0.18);
+              ring.position.set(
+                HOUSE_X + smkOrig.x * cosH + smkOrig.z * sinH,
+                getTerrainHeight(HOUSE_X, HOUSE_Z) + smkOrig.y + 0.05,
+                HOUSE_Z - smkOrig.x * sinH + smkOrig.z * cosH
+              );
               dioramaGroup.add(ring);
               extraSmokeRings.push({ mesh: ring, life: 0, maxLife: 2.2 });
               selectSheep(null);
@@ -8411,7 +10587,7 @@
         e.stopPropagation();
         if (!selectedSheep) return;
         if (sheepList.length >= 24) {
-          showToast('草地最多容纳 24 只小羊');
+          showToast(getWorldConfig().maxFlockToast);
           return;
         }
         const angle = Math.random() * Math.PI * 2;
@@ -8420,6 +10596,7 @@
         nx = Math.max(TERRAIN_MIN_X + 1.5, Math.min(TERRAIN_MAX_X - 1.5, nx));
         nz = Math.max(-SLAB_D / 2 + 1.5, Math.min(SLAB_D / 2 - 1.5, nz));
         if (isInRiver(nx, nz, 0.7)) nx += 2.6;
+        if (isInsidePen(nx, nz, 0.6) || isInsideHouseFootprint(nx, nz, 0.5)) { nx = PEN_X - PEN_W * 0.5 - 1.2; nz = PEN_Z + 1.5; }
         const clone = createSheep(nx, nz, selectedSheep.targetRotY + 0.3, selectedSheep.state);
         selectSheep(clone);
       });
@@ -8443,7 +10620,7 @@
 
         if (weatherMode === 'sunny') {
           hemiLight.color.setHex(0xfffef8);
-          hemiLight.groundColor.setHex(currentWorld === 'desert' ? 0xd9bc84 : 0xb8cf8a);
+          hemiLight.groundColor.setHex(getWorldConfig().sunnyGroundHex);
           hemiLight.intensity = 0.88;
           dirLight.color.setHex(0xfff8e6);
           dirLight.intensity = 0.92;
@@ -8468,6 +10645,34 @@
           dirLight.position.set(22, 20, -14);
           if (cottageWindowMat && cottageLightsOn) cottageWindowMat.emissiveIntensity = 0.65;
           if (cottageWarmLight && cottageLightsOn) cottageWarmLight.intensity = 0.7;
+        } else if (weatherMode === 'mist') {
+          hemiLight.color.setHex(0xddebe8);
+          hemiLight.groundColor.setHex(0x6e8c68);
+          hemiLight.intensity = 0.86;
+          dirLight.color.setHex(0xeaf5f2);
+          dirLight.intensity = 0.58;
+          dirLight.position.set(14, 26, -10);
+          if (cottageWindowMat && cottageLightsOn) cottageWindowMat.emissiveIntensity = 0.65;
+          if (cottageWarmLight && cottageLightsOn) cottageWarmLight.intensity = 0.7;
+        } else if (weatherMode === 'autumn') {
+          hemiLight.color.setHex(0xffe1b8);
+          hemiLight.groundColor.setHex(0x9a7846);
+          hemiLight.intensity = 0.80;
+          dirLight.color.setHex(0xffb463);
+          dirLight.intensity = 1.05;
+          dirLight.position.set(24, 16, -16);
+          if (cottageWindowMat && cottageLightsOn) cottageWindowMat.emissiveIntensity = 0.78;
+          if (cottageWarmLight && cottageLightsOn) cottageWarmLight.intensity = 1.2;
+        } else if (weatherMode === 'firefly') {
+          cottageLightsOn = true;
+          hemiLight.color.setHex(0x2e4a52);
+          hemiLight.groundColor.setHex(0x1e332c);
+          hemiLight.intensity = 0.52;
+          dirLight.color.setHex(0x88c4b8);
+          dirLight.intensity = 0.42;
+          dirLight.position.set(-12, 24, -10);
+          if (cottageWindowMat) cottageWindowMat.emissiveIntensity = 1.48;
+          if (cottageWarmLight) cottageWarmLight.intensity = 1.9;
         } else if (weatherMode === 'night') {
           cottageLightsOn = true;
           hemiLight.color.setHex(0x3a4d7a);
@@ -8502,13 +10707,13 @@
           tab.classList.toggle('active', active);
           tab.setAttribute('aria-selected', active ? 'true' : 'false');
         });
-        btnAddSheep.textContent = currentWorld === 'desert' ? '+ 添一只羊驼' : '+ 添一只羊';
+        btnAddSheep.textContent = getWorldConfig().addButtonLabel;
       }
       applyWorldUI();
       applyWeatherMode('sunny');
 
       // Per-world state snapshots so switching universes preserves flock, weather, lights & guardian
-      const worldSnapshots = { meadow: null, desert: null };
+      const worldSnapshots = Object.create(null);
 
       function saveWorldSnapshot(worldId) {
         worldSnapshots[worldId] = {
@@ -8522,8 +10727,8 @@
               z: s.root.position.z,
               rotY: s.targetRotY,
               state: s.state,
-              withSweater: Boolean(s.sweaterTimer > 0),
-              sweaterTimer: s.sweaterTimer || 0
+              withSweater: Boolean(s.sweaterTimer > 0 || s.basketEmpty),
+              sweaterTimer: s.sweaterTimer || s.refillTimer || 0
             })),
           guardian: goldenCat ? {
             x: goldenCat.root.position.x,
@@ -8554,7 +10759,8 @@
         snap.flock.forEach(item => {
           const s = createSheep(item.x, item.z, item.rotY, item.state, item.withSweater);
           if (item.withSweater && item.sweaterTimer > 0) {
-            s.sweaterTimer = item.sweaterTimer;
+            if (s.isSquirrel) s.refillTimer = item.sweaterTimer;
+            else s.sweaterTimer = item.sweaterTimer;
           }
           s.spawnScale = 1;
           s.root.scale.setScalar(1);
@@ -8583,7 +10789,7 @@
           if (targetWorld === currentWorld || worldSwitching) return;
           worldSwitching = true;
           saveWorldSnapshot(currentWorld);
-          worldVeilEl.style.background = targetWorld === 'desert' ? '#f3e5cd' : '#f4f1ea';
+          worldVeilEl.style.background = (WORLD_REGISTRY[targetWorld] && WORLD_REGISTRY[targetWorld].veilColor) || '#f4f1ea';
           worldVeilEl.classList.add('fade');
           setTimeout(() => {
             currentWorld = targetWorld;
@@ -8604,7 +10810,7 @@
             selectSheep(null);
             worldVeilEl.classList.remove('fade');
             worldSwitching = false;
-            showToast(currentWorld === 'desert' ? '已切换至沙漠绿洲 🏜️' : '已切换至春日草原 🌿');
+            showToast(getWorldConfig().switchToast);
           }, 220);
         });
       });
@@ -8659,7 +10865,7 @@
 
       btnAddSheep.addEventListener('click', () => {
         if (sheepList.length >= 24) {
-          showToast('草地最多容纳 24 只小羊');
+          showToast(getWorldConfig().maxFlockToast);
           return;
         }
         let x = 0, z = 0;
@@ -8690,7 +10896,7 @@
         camState.radius = camState.baseRadius;
         syncZoomUI(1.0);
         updateCameraTransform();
-        showToast(currentWorld === 'desert' ? '已重置沙漠绿洲场景' : '已重置春日草原场景');
+        showToast(getWorldConfig().resetToast);
       });
 
       // Keyboard Escape to deselect
@@ -8752,7 +10958,33 @@
           reefFoamMesh.material.opacity = 0.34 + Math.sin(elapsed * 2.8) * 0.10;
         }
 
-        if (currentWorld === 'desert') {
+        if (getWorldConfig().env.ambientParticleStyle === 'forest_leaves') {
+          const isFirefly = weatherMode === 'firefly';
+          const driftSpd = weatherMode === 'autumn' ? 1.85 : (isFirefly ? 0.35 : 0.75);
+          petals.forEach((p, idx) => {
+            if (isFirefly) {
+              p.mesh.material.color.setHex(0xe9ff6b);
+              p.mesh.material.opacity = 0.35 + Math.max(0, Math.sin(elapsed * 3.4 + idx * 1.7)) * 0.65;
+              p.mesh.position.x += Math.sin(elapsed * 1.2 + idx) * dt * 0.42;
+              p.mesh.position.z += Math.cos(elapsed * 1.0 + idx * 1.3) * dt * 0.42;
+              p.mesh.position.y = 0.65 + (idx % 5) * 0.48 + Math.sin(elapsed * 2.2 + idx) * 0.25;
+              p.mesh.scale.setScalar(0.9 + Math.max(0, Math.sin(elapsed * 3.4 + idx * 1.7)) * 0.65);
+            } else {
+              if (p.baseColorHex !== undefined) p.mesh.material.color.setHex(p.baseColorHex);
+              p.mesh.material.opacity = 0.85;
+              p.mesh.scale.setScalar(1.0);
+              p.mesh.position.x += dt * (driftSpd + (idx % 3) * 0.2);
+              p.mesh.position.y -= dt * (0.32 + (idx % 3) * 0.08);
+              p.mesh.rotation.x += dt * 1.6;
+              p.mesh.rotation.z += dt * 1.3;
+              if (p.mesh.position.y < 0.1 || p.mesh.position.x > TERRAIN_MAX_X - 0.8) {
+                p.mesh.position.x = TERRAIN_MIN_X + 0.8 + Math.random() * (SLAB_W - 2.0);
+                p.mesh.position.y = 3.2 + Math.random() * 2.6;
+                p.mesh.position.z = (Math.random() - 0.5) * (SLAB_D - 1.5);
+              }
+            }
+          });
+        } else if (getWorldConfig().env.ambientParticleStyle === 'sand_motes') {
           const sandWind = weatherMode === 'sandstorm' ? 4.8 : 1.35;
           petals.forEach((p, idx) => {
             p.mesh.position.x += dt * (sandWind + (idx % 4) * 0.35);
@@ -8791,17 +11023,41 @@
         }
         const windAmt = (weatherMode === 'rain' ? 0.45 : 0.12) + breezeState.strength * 0.88;
         treeGroups.forEach((tg, idx) => {
-          tg.rotation.z = Math.sin(elapsed * 2.2 + idx * 1.1) * 0.032 * windAmt;
-          tg.rotation.x = Math.cos(elapsed * 1.7 + idx * 0.8) * 0.018 * windAmt;
+          let extraShake = 0;
+          if (tg.userData && tg.userData.shakeTimer > 0) {
+            tg.userData.shakeTimer = Math.max(0, tg.userData.shakeTimer - dt);
+            extraShake = Math.sin(elapsed * 42.0) * 0.14 * (tg.userData.shakeTimer / 0.72);
+          }
+          tg.rotation.z = Math.sin(elapsed * 2.2 + idx * 1.1) * 0.032 * windAmt + extraShake;
+          tg.rotation.x = Math.cos(elapsed * 1.7 + idx * 0.8) * 0.018 * windAmt + extraShake * 0.5;
         });
+        if (forestCrateGroup && forestCrateGroup.userData && forestCrateGroup.userData.shakeTimer > 0) {
+          forestCrateGroup.userData.shakeTimer = Math.max(0, forestCrateGroup.userData.shakeTimer - dt);
+          const env = forestCrateGroup.userData.shakeTimer / 0.7;
+          forestCrateGroup.rotation.z = Math.sin(elapsed * 38.0) * 0.14 * env;
+        } else if (forestCrateGroup) {
+          forestCrateGroup.rotation.z = 0;
+        }
+        // Bioluminescent breathing glow on Forest mushroom stumps during Firefly Night!
+        if (forestGlowMushroomMats.length > 0) {
+          const glowing = weatherMode === 'firefly';
+          forestGlowMushroomMats.forEach((mat, idx) => {
+            if (glowing) {
+              mat.emissive.setHex(0x6ee7b7);
+              mat.emissiveIntensity = 0.55 + Math.sin(elapsed * 2.8 + idx * 1.3) * 0.32;
+            } else if (mat.emissiveIntensity > 0) {
+              mat.emissiveIntensity = 0;
+            }
+          });
+        }
 
-        const isDesAnim = currentWorld === 'desert';
+        const smokeOrig = getWorldConfig().env.smokeOrigin;
         chimneySmokePuffs.forEach(p => {
           const cycle = (elapsed * 0.28 + p.phase) % 1.0;
           p.mesh.position.set(
-            (isDesAnim ? 1.28 : 0.66) + Math.sin(cycle * Math.PI * 2) * 0.14 + cycle * (0.22 + windAmt * 0.65),
-            (isDesAnim ? 0.28 : 2.42) + cycle * 1.15,
-            (isDesAnim ? 0.86 : -0.34) + cycle * 0.08
+            smokeOrig.x + Math.sin(cycle * Math.PI * 2) * 0.14 + cycle * (0.22 + windAmt * 0.65),
+            smokeOrig.y + cycle * 1.15,
+            smokeOrig.z + cycle * 0.08
           );
           const sc = 0.55 + cycle * 1.15;
           p.mesh.scale.setScalar(sc);
@@ -8829,6 +11085,39 @@
         updateMicroParticles(dt);
         updateGoldenRebirthFX(dt);
         updateButterflies(dt, elapsed);
+        updateForestNuts(dt, elapsed);
+        updateBuryMounds(dt);
+        updateFountainNuts(dt);
+
+        // Animate acorns falling from upside-down shaken squirrel into the wooden storage crate!
+        for (let i = fallingNuts.length - 1; i >= 0; i--) {
+          const fn = fallingNuts[i];
+          fn.life += dt;
+          fn.vy -= 8.8 * dt;
+          fn.mesh.position.x += fn.vx * dt;
+          fn.mesh.position.y += fn.vy * dt;
+          fn.mesh.position.z += fn.vz * dt;
+          fn.mesh.rotation.x += dt * 7.5;
+          fn.mesh.rotation.z += dt * 5.2;
+          if (fn.mesh.position.y <= fn.targetY || fn.life > 1.5) {
+            dioramaGroup.remove(fn.mesh);
+            if (forestCrateNutsGroup && forestCrateNutCount < 28) {
+              const settled = createNutMesh(1.12);
+              settled.position.set(
+                (Math.random() - 0.5) * 0.62,
+                0.10 + Math.min(0.20, forestCrateNutCount * 0.008),
+                (Math.random() - 0.5) * 0.50
+              );
+              settled.rotation.set(Math.random() * 2, Math.random() * 3, Math.random() * 2);
+              forestCrateNutsGroup.add(settled);
+              forestCrateNutCount++;
+              if (forestCrateNutCount >= 22) {
+                triggerCrateFountain();
+              }
+            }
+            fallingNuts.splice(i, 1);
+          }
+        }
 
         if (weatherMode === 'sandstorm') {
           sandStreaks.forEach(st => {
@@ -8841,7 +11130,7 @@
             }
           });
         }
-        if (weatherMode === 'night' && currentWorld === 'desert' && cottageWarmLight && cottageWindowMat && cottageLightsOn) {
+        if ((weatherMode === 'night' || weatherMode === 'firefly') && getWorldConfig().nightFlicker && cottageWarmLight && cottageWindowMat && cottageLightsOn) {
           const fl = Math.sin(elapsed * 9.5) * 0.18;
           cottageWarmLight.intensity = 1.9 + fl;
           cottageWindowMat.emissiveIntensity = 1.45 + fl * 0.6;
