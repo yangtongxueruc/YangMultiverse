@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Miniature Meadow Diorama — Interactive 3D Demo</title>
+  <title>YangMultiverse — 双宇宙微缩生态互动小游戏</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -372,6 +372,92 @@
       border-color: #2563eb;
     }
 
+    .zoom-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #334155;
+      font-size: 11.5px;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      user-select: none;
+    }
+
+    .zoom-pill.zoomed {
+      border-color: rgba(37, 99, 235, 0.35);
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .zoom-label {
+      color: #64748b;
+      font-size: 11px;
+      margin-right: 1px;
+    }
+
+    .zoom-step-btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: #334155;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      transition: background-color 0.14s ease, color 0.14s ease;
+    }
+
+    .zoom-step-btn:hover:not(:disabled) {
+      background: rgba(37, 99, 235, 0.1);
+      color: #1d4ed8;
+    }
+
+    .zoom-step-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    #zoom-slider {
+      width: 62px;
+      height: 4px;
+      accent-color: #2563eb;
+      cursor: pointer;
+      margin: 0 2px;
+    }
+
+    #zoom-value {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: #334155;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      min-width: 34px;
+      padding: 2px 3px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: background-color 0.14s ease, color 0.14s ease;
+    }
+
+    #zoom-value:hover {
+      background: rgba(15, 23, 42, 0.06);
+      color: #0f172a;
+    }
+
     /* Subtle toast notification */
     #toast {
       position: absolute;
@@ -416,6 +502,12 @@
       #demo-controls {
         top: 10px;
         right: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        max-width: calc(100vw - 140px);
+      }
+      #zoom-slider {
+        display: none;
       }
       .ctrl-pill {
         font-size: 11px;
@@ -489,6 +581,13 @@
     <div id="demo-controls">
       <button class="ctrl-pill" id="btn-weather" type="button">天气: 晴天</button>
       <button class="ctrl-pill" id="btn-orbit-toggle" type="button">自由视角: 关</button>
+      <div class="zoom-pill" id="zoom-control" role="group" aria-label="画面放大调节">
+        <span class="zoom-label">放大</span>
+        <button class="zoom-step-btn" id="btn-zoom-out" type="button" title="缩小" aria-label="缩小">−</button>
+        <input id="zoom-slider" type="range" min="0.85" max="2.20" step="0.05" value="1.00" aria-label="画面缩放倍率" />
+        <button id="zoom-value" type="button" title="点击恢复 100%">100%</button>
+        <button class="zoom-step-btn" id="btn-zoom-in" type="button" title="放大" aria-label="放大">+</button>
+      </div>
       <button class="ctrl-pill" id="btn-add-sheep" type="button">+ 添一只羊</button>
       <button class="ctrl-pill" id="btn-reset-flock" type="button">重置场景</button>
     </div>
@@ -525,6 +624,11 @@
       const worldVeilEl = document.getElementById('world-veil');
       const btnWeather = document.getElementById('btn-weather');
       const btnOrbitToggle = document.getElementById('btn-orbit-toggle');
+      const zoomControlEl = document.getElementById('zoom-control');
+      const btnZoomOut = document.getElementById('btn-zoom-out');
+      const btnZoomIn = document.getElementById('btn-zoom-in');
+      const zoomSliderEl = document.getElementById('zoom-slider');
+      const zoomValueEl = document.getElementById('zoom-value');
       const btnAddSheep = document.getElementById('btn-add-sheep');
       const btnResetFlock = document.getElementById('btn-reset-flock');
       const toastEl = document.getElementById('toast');
@@ -564,6 +668,9 @@
         220
       );
 
+      const initZoomParam = parseFloat(params.get('zoom'));
+      const initialZoom = (!isNaN(initZoomParam) && initZoomParam >= 0.85 && initZoomParam <= 2.2) ? initZoomParam : 1.0;
+
       const camState = {
         baseAzimuth: 0.0,
         baseElevation: 0.90,
@@ -571,12 +678,18 @@
         azimuth: 0.0,
         elevation: 0.90,
         radius: 76.5,
+        zoom: initialZoom,
+        targetZoom: initialZoom,
+        minZoom: 0.85,
+        maxZoom: 2.2,
         target: new THREE.Vector3(0.3, 0.0, 0.2),
         orbitEnabled: false,
         dragging: false,
         lastX: 0,
         lastY: 0
       };
+      camera.zoom = camState.zoom;
+      camera.updateProjectionMatrix();
 
       function updateCameraTransform() {
         const cosEl = Math.cos(camState.elevation);
@@ -7495,7 +7608,7 @@
           height: Math.max(24, maxY - minY + pad * 2),
           centerX: (minX + maxX) / 2,
           bottom: maxY + pad,
-          dist: Math.round(dist),
+          dist: Math.round(dist / Math.max(0.5, camera.zoom)),
           displayW: displayW.toFixed(2),
           displayH: displayH.toFixed(2)
         };
@@ -7562,7 +7675,7 @@
         dimensionPillEl.style.display = 'block';
         dimensionPillEl.textContent = `${b.displayW} × ${b.displayH} m · ${b.dist} m away`;
         const pillLeft = Math.max(85, Math.min(stage.clientWidth - 85, b.centerX));
-        const pillTop = Math.min(stage.clientHeight - 76, b.bottom + 8);
+        const pillTop = Math.max(12, Math.min(stage.clientHeight - 76, b.bottom + 8));
         dimensionPillEl.style.left = pillLeft + 'px';
         dimensionPillEl.style.top = pillTop + 'px';
 
@@ -7570,7 +7683,7 @@
         toolbarEl.style.display = 'flex';
         const tbHalfW = Math.max(150, toolbarEl.offsetWidth / 2);
         const tbLeft = Math.max(tbHalfW + 10, Math.min(stage.clientWidth - tbHalfW - 10, b.centerX));
-        const tbTop = Math.min(stage.clientHeight - 46, pillTop + 28);
+        const tbTop = Math.max(40, Math.min(stage.clientHeight - 46, pillTop + 28));
         toolbarEl.style.left = tbLeft + 'px';
         toolbarEl.style.top = tbTop + 'px';
       }
@@ -8394,22 +8507,98 @@
       applyWorldUI();
       applyWeatherMode('sunny');
 
+      // Per-world state snapshots so switching universes preserves flock, weather, lights & guardian
+      const worldSnapshots = { meadow: null, desert: null };
+
+      function saveWorldSnapshot(worldId) {
+        worldSnapshots[worldId] = {
+          weatherIdx,
+          weatherMode,
+          cottageLightsOn,
+          flock: sheepList
+            .filter(s => !s.deleting)
+            .map(s => ({
+              x: s.root.position.x,
+              z: s.root.position.z,
+              rotY: s.targetRotY,
+              state: s.state,
+              withSweater: Boolean(s.sweaterTimer > 0),
+              sweaterTimer: s.sweaterTimer || 0
+            })),
+          guardian: goldenCat ? {
+            x: goldenCat.root.position.x,
+            z: goldenCat.root.position.z,
+            rotY: goldenCat.targetRotY,
+            state: goldenCat.state,
+            onRoofTimer: goldenCat.onRoofTimer || 0
+          } : null
+        };
+      }
+
+      function restoreWorldSnapshot(snap) {
+        clearHerdingEvent();
+        sweaterReturnQueue = [];
+        while (pairInteractions.length > 0) {
+          clearPairInteraction(pairInteractions[0]);
+        }
+        sheepList.forEach(s => dioramaGroup.remove(s.root));
+        sheepList = [];
+        selectedSheep = null;
+        hoveredSheep = null;
+
+        cottageLightsOn = Boolean(snap.cottageLightsOn);
+        const modes = getActiveWeatherModes();
+        weatherIdx = Math.max(0, Math.min(modes.length - 1, snap.weatherIdx || 0));
+        applyWeatherMode(snap.weatherMode || modes[weatherIdx].id);
+
+        snap.flock.forEach(item => {
+          const s = createSheep(item.x, item.z, item.rotY, item.state, item.withSweater);
+          if (item.withSweater && item.sweaterTimer > 0) {
+            s.sweaterTimer = item.sweaterTimer;
+          }
+          s.spawnScale = 1;
+          s.root.scale.setScalar(1);
+        });
+
+        if (goldenCat) {
+          dioramaGroup.remove(goldenCat.root);
+        }
+        if (snap.guardian) {
+          goldenCat = createGoldenCat(snap.guardian.x, snap.guardian.z, snap.guardian.rotY);
+          goldenCat.state = snap.guardian.state;
+          goldenCat.onRoofTimer = getWorldRules().guardian.canClimbRoof ? (snap.guardian.onRoofTimer || 0) : 0;
+          if (goldenCat.onRoofTimer > 0) {
+            goldenCat.root.position.y = getTerrainHeight(HOUSE_X, HOUSE_Z) + 2.18;
+          }
+        } else {
+          goldenCat = createGoldenCat(1.4, -0.6, 0.0);
+        }
+        updateSelectionUI();
+      }
+
       let worldSwitching = false;
       worldTabs.forEach(tab => {
         tab.addEventListener('click', () => {
           const targetWorld = tab.dataset.world;
           if (targetWorld === currentWorld || worldSwitching) return;
           worldSwitching = true;
+          saveWorldSnapshot(currentWorld);
           worldVeilEl.style.background = targetWorld === 'desert' ? '#f3e5cd' : '#f4f1ea';
           worldVeilEl.classList.add('fade');
           setTimeout(() => {
             currentWorld = targetWorld;
-            weatherIdx = 0;
             applyWorldUI();
             buildWorldEnvironment();
-            applyWeatherMode('sunny');
-            populateInitialFlock();
-            initGoldenCat();
+            const saved = worldSnapshots[targetWorld];
+            if (saved) {
+              restoreWorldSnapshot(saved);
+            } else {
+              weatherIdx = 0;
+              cottageLightsOn = false;
+              applyWeatherMode('sunny');
+              populateInitialFlock();
+              initGoldenCat();
+            }
             populateClouds();
             populateRiverFish();
             selectSheep(null);
@@ -8433,6 +8622,41 @@
         setCanvasCursor(camState.orbitEnabled ? 'grab' : 'default');
       });
 
+      function syncZoomUI(val) {
+        const clamped = Math.max(camState.minZoom, Math.min(camState.maxZoom, Math.round(val * 100) / 100));
+        camState.targetZoom = clamped;
+        zoomSliderEl.value = clamped.toFixed(2);
+        zoomValueEl.textContent = Math.round(clamped * 100) + '%';
+        btnZoomOut.disabled = clamped <= camState.minZoom + 0.001;
+        btnZoomIn.disabled = clamped >= camState.maxZoom - 0.001;
+        zoomControlEl.classList.toggle('zoomed', Math.abs(clamped - 1.0) > 0.01);
+      }
+      syncZoomUI(camState.targetZoom);
+
+      // Isolate pointer & wheel events on zoom control so it never interferes with canvas interactions
+      ['pointerdown', 'mousedown', 'touchstart', 'wheel'].forEach(evtName => {
+        zoomControlEl.addEventListener(evtName, (e) => {
+          e.stopPropagation();
+        });
+      });
+
+      btnZoomOut.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncZoomUI(camState.targetZoom - 0.15);
+      });
+      btnZoomIn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncZoomUI(camState.targetZoom + 0.15);
+      });
+      zoomSliderEl.addEventListener('input', (e) => {
+        e.stopPropagation();
+        syncZoomUI(parseFloat(zoomSliderEl.value));
+      });
+      zoomValueEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncZoomUI(1.0);
+      });
+
       btnAddSheep.addEventListener('click', () => {
         if (sheepList.length >= 24) {
           showToast('草地最多容纳 24 只小羊');
@@ -8449,15 +8673,24 @@
       });
 
       btnResetFlock.addEventListener('click', () => {
+        worldSnapshots[currentWorld] = null;
+        weatherIdx = 0;
+        cottageLightsOn = false;
+        applyWeatherMode('sunny');
         populateInitialFlock();
         populateClouds();
         populateRiverFish();
         initGoldenCat();
+        camState.orbitEnabled = false;
+        btnOrbitToggle.classList.remove('active');
+        btnOrbitToggle.textContent = '自由视角: 关';
+        setCanvasCursor('default');
         camState.azimuth = camState.baseAzimuth;
         camState.elevation = camState.baseElevation;
         camState.radius = camState.baseRadius;
+        syncZoomUI(1.0);
         updateCameraTransform();
-        showToast('已重置牧场与羊群');
+        showToast(currentWorld === 'desert' ? '已重置沙漠绿洲场景' : '已重置春日草原场景');
       });
 
       // Keyboard Escape to deselect
@@ -8636,6 +8869,16 @@
         // Update articulated sheep flock & Golden Shaded British Shorthair cat
         updateSheep(dt, elapsed);
         updateGoldenCat(dt, elapsed);
+
+        // Smoothly interpolate native camera zoom so raycasting & overlays stay pixel-exact
+        if (Math.abs(camState.targetZoom - camState.zoom) > 0.0005) {
+          camState.zoom += (camState.targetZoom - camState.zoom) * Math.min(1, dt * 12);
+          if (Math.abs(camState.targetZoom - camState.zoom) <= 0.0005) {
+            camState.zoom = camState.targetZoom;
+          }
+          camera.zoom = camState.zoom;
+          camera.updateProjectionMatrix();
+        }
 
         // Render 3D scene & sync 2D screen-space selection UI
         renderer.render(scene, camera);
